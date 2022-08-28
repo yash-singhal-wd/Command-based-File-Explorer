@@ -102,7 +102,6 @@ int main() {
     reposition_cursor_to_start();
 
     cout << E.number_of_rows_terminal << endl;
-    
     char c;
     while(1){
         c = read_input_by_byte();
@@ -112,7 +111,7 @@ int main() {
             break;
         } 
         if (iscntrl(c)) {
-            // cout << "here" << endl;
+            cout << "here" << endl;
             printf("%d\n", c);
         }
         else
