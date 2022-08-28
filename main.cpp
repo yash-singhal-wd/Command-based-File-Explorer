@@ -6,6 +6,9 @@
 #include <unistd.h>
 #include <iostream>
 #include <sys/ioctl.h>
+#include <string.h>
+#include <dirent.h>
+#include <vector>
 
 using namespace std;
 
@@ -19,6 +22,8 @@ void initialise_terminal();
 int get_terminal_rows_and_cols(int *rows, int *cols);
 void reposition_cursor_to_start();
 char read_input_by_byte();
+void print_message(string s, int row);
+int display_initial_files();
 
 /**** Initial terminal attributes and related functions ****/
 struct terminal_configs {
@@ -84,6 +89,23 @@ void render_blank_screen() {
     write(STDOUT_FILENO, "\x1b[2J", 4);
 }
 
+int display_initial_files(){
+    DIR* dir = opendir(".");
+    if( dir==NULL ){
+        return 1;
+    }
+
+    struct dirent* entity;
+    entity = readdir(dir);
+
+    while(entity!=NULL){
+        printf("%s\n", entity->d_name);
+        entity = readdir(dir);
+    }
+
+    closedir(dir);
+    return 0;
+}
 
 /**** input screen related ****/
 char read_input_by_byte() {
@@ -100,9 +122,7 @@ int main() {
     initialise_terminal();
     render_blank_screen();
     reposition_cursor_to_start();
-
-    cout << E.number_of_rows_terminal << endl;
-    
+    display_initial_files();
     char c;
     while(1){
         c = read_input_by_byte();
