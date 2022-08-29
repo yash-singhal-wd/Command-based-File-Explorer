@@ -126,7 +126,10 @@ void display_arr_on_terminal(int current_cursor_pos, vector<string> &arr){
         struct stat file_data;
         string temp = E.current_path;
         if(i==0) temp=E.current_path;
-        else if(i==1) temp=E.prev_stack.top();
+        else if(i==1){
+            if( !E.prev_stack.empty()) temp=E.prev_stack.top();
+            else temp=E.current_path;
+        } 
         else temp = temp + "/" + record_keeper[i];
         
         const char* temp_path = temp.c_str();
@@ -148,8 +151,11 @@ void display_arr_on_terminal(int current_cursor_pos, vector<string> &arr){
                 size_of_file = to_string(file_size);
                 size_of_file = size_of_file + "KB";
             }
-        } else {
+        } else if(file_size>0) {
             size_of_file = to_string(file_size);
+            size_of_file = size_of_file + "B";
+        } else {
+            size_of_file = to_string(0);
             size_of_file = size_of_file + "B";
         }
 
@@ -187,7 +193,10 @@ int main() {
     char c;
     while(1){
         c = cin.get();
-        if( c=='q' ){
+        if( c==10 ){
+            render_blank_screen();
+            cout << "enter!!!!!" << endl;
+        } else if( c=='q' ){
             render_blank_screen();
             reposition_cursor_to_start();
             break;
@@ -201,9 +210,29 @@ int main() {
             the_path = E.current_path.c_str();
             display_arr_on_terminal(E.row_no, record_keeper);
             reposition_cursor_to_start();
-        } else if(c == 'C' /*right*/){}
-        else if(c == 'D' /*left*/){}
-        else if( c==10 ){}
+        } else if(c == 'C' /*right*/){
+            if( !E.next_stack.empty() ){
+                E.prev_stack.push(E.current_path);
+                E.current_path = E.next_stack.top();
+                E.next_stack.pop();
+                E.start_row=0;
+                E.end_row=E.window_size-1;
+                E.row_no=0;
+                the_path = E.current_path.c_str();
+                get_files(the_path);
+            }
+        } else if(c == 'D' /*left*/){
+            if( !E.prev_stack.empty() ){
+                E.next_stack.push(E.current_path);
+                E.current_path = E.prev_stack.top();
+                E.prev_stack.pop();
+                the_path = E.current_path.c_str();
+                E.start_row=0;
+                E.end_row=E.window_size-1;
+                E.row_no=0;
+                get_files(the_path);
+            }
+        }
     }
   return 0;
 }
