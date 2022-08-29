@@ -35,7 +35,7 @@ void initialise_terminal(){
   if( get_terminal_rows_and_cols(&E.number_of_rows_terminal, &E.number_of_cols_terminal) == -1)
     die("get_terminal_rows_and_cols");
   E.row_no = 0;
-  E.window_size = E.number_of_rows_terminal-10;
+  E.window_size = E.number_of_rows_terminal-5;
   E.start_row=0;
   E.end_row=E.window_size-1;
   E.current_path="/home/yash";
@@ -109,7 +109,17 @@ int get_files(const char* pathname){
 void display_arr_on_terminal(int current_cursor_pos, vector<string> &arr){
     render_blank_screen();
     string cursor = "       ";
-    for( int i=0; i<arr.size(); ++i ){
+    if(arr.size()>E.window_size) E.end_row = E.window_size;
+    else E.end_row = arr.size();
+    if(E.row_no>E.end_row-1){
+        E.start_row = E.end_row;
+        E.end_row = arr.size()>(E.end_row+E.window_size) ? (E.end_row+E.window_size) : arr.size();
+    }
+    if(E.row_no<E.start_row && E.row_no!=0 && E.start_row!=0){
+        E.end_row = E.start_row;
+        E.start_row = (E.start_row-E.window_size)>0 ? (E.start_row-E.window_size) : 0;
+    }
+    for( int i=E.start_row; i<E.end_row; ++i ){
         if( i==current_cursor_pos ) cursor=">>>  "; 
         else cursor = "     ";
 
