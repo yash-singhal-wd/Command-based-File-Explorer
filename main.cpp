@@ -4,6 +4,7 @@ using namespace std;
 
 void display_arr_on_terminal( int current_cursor_pos, vector <string> &arr);
 string get_parent_directory(string path);
+void open_file(string path);
 vector<string> record_keeper;
 
 /**** Initial terminal attributes and related functions ****/
@@ -62,6 +63,15 @@ string get_parent_directory(string path){
     return parent; 
 }
 
+void open_file(string path){
+    pid_t child=fork();
+        if(child==0){
+            string open_path_name;
+            if(E.current_path=="/") open_path_name = "xdg-open " + E.current_path + "\'" + path + "\'"; 
+            else open_path_name = "xdg-open " + E.current_path + "/" + "\'" + path + "\'";
+            execl("/bin/sh", "sh", "-c", open_path_name.c_str() , (char *) NULL);
+        }
+}
 
 /**** Error handling funtion ****/
 void die(const char *s) {
@@ -139,74 +149,80 @@ void display_arr_on_terminal(int current_cursor_pos, vector<string> &arr){
         E.end_row = E.start_row;
         E.start_row = (E.start_row-E.window_size)>0 ? (E.start_row-E.window_size) : 0;
     }
-    for( int i=E.start_row; i<E.end_row; ++i ){
-        if( i==current_cursor_pos ) cursor=">>>  "; 
-        else cursor = "     ";
+    for( int i=E.start_row; i<E.number_of_rows_terminal; ++i ){
+        if( i<E.end_row ){
+            if( i==current_cursor_pos ) cursor=">>>  "; 
+            else cursor = "     ";
 
-        struct stat file_data;
-        string temp = E.current_path;
-        if(i==0) temp=E.current_path;
-        else if(i==1){
-            if( !E.prev_stack.empty()) temp=E.prev_stack.top();
-            else temp=E.current_path;
-        } 
-        else temp = temp + "/" + record_keeper[i];
-        
-        const char* temp_path = temp.c_str();
-        stat(temp_path, &file_data);  
+            struct stat file_data;
+            string temp = E.current_path;
+            if(i==0) temp=E.current_path;
+            else if(i==1){
+                if( !E.prev_stack.empty()) temp=E.prev_stack.top();
+                else temp=E.current_path;
+            } 
+            else temp = temp + "/" + record_keeper[i];
+            
+            const char* temp_path = temp.c_str();
+            stat(temp_path, &file_data);  
 
-        /*** modified time ***/
-        string modified_time = ctime(&file_data.st_mtime);
-        modified_time = modified_time.substr(4, 20);
-        /*** filesize ***/
-        string size_of_file="";
-        int file_size = file_data.st_size;
-        if( file_size>=1024 ){
-            file_size = file_size/1024;
+            /*** modified time ***/
+            string modified_time = ctime(&file_data.st_mtime);
+            modified_time = modified_time.substr(4, 20);
+            /*** filesize ***/
+            string size_of_file="";
+            int file_size = file_data.st_size;
             if( file_size>=1024 ){
                 file_size = file_size/1024;
+                if( file_size>=1024 ){
+                    file_size = file_size/1024;
+                    size_of_file = to_string(file_size);
+                    size_of_file = size_of_file + "GB";
+                } else {
+                    size_of_file = to_string(file_size);
+                    size_of_file = size_of_file + "KB";
+                }
+            } else if(file_size>0) {
                 size_of_file = to_string(file_size);
-                size_of_file = size_of_file + "GB";
+                size_of_file = size_of_file + "B";
             } else {
-                size_of_file = to_string(file_size);
-                size_of_file = size_of_file + "KB";
+                size_of_file = to_string(0);
+                size_of_file = size_of_file + "B";
             }
-        } else if(file_size>0) {
-            size_of_file = to_string(file_size);
-            size_of_file = size_of_file + "B";
-        } else {
-            size_of_file = to_string(0);
-            size_of_file = size_of_file + "B";
+
+            /*** permissions ***/
+            string permissions="";
+            permissions += ((S_ISDIR(file_data.st_mode))  ? "d" : "-");
+            permissions += ((file_data.st_mode & S_IRUSR) ? "r" : "-");
+            permissions += ((file_data.st_mode & S_IWUSR) ? "w" : "-");
+            permissions += ((file_data.st_mode & S_IXUSR) ? "x" : "-");
+            permissions += ((file_data.st_mode & S_IRGRP) ? "r" : "-");
+            permissions += ((file_data.st_mode & S_IWGRP) ? "w" : "-");
+            permissions += ((file_data.st_mode & S_IXGRP) ? "x" : "-");
+            permissions += ((file_data.st_mode & S_IROTH) ? "r" : "-");
+            permissions += ((file_data.st_mode & S_IWOTH) ? "w" : "-");
+            permissions += ((file_data.st_mode & S_IXOTH) ? "x" : "-");
+
+            /*** User and group name ***/
+            uid_t user_id = file_data.st_uid;
+            uid_t group_id = file_data.st_gid;
+            string username = (getpwuid(user_id)->pw_name);
+            string groupname = (getgrgid(group_id)->gr_name);
+
+            cout << cursor << permissions << "\t\t" << username << "\t\t" << groupname << "\t\t" << modified_time << "\t\t" << size_of_file << "\t\t" << arr[i] << endl;
         }
-
-        /*** permissions ***/
-        string permissions="";
-        permissions += ((S_ISDIR(file_data.st_mode))  ? "d" : "-");
-        permissions += ((file_data.st_mode & S_IRUSR) ? "r" : "-");
-        permissions += ((file_data.st_mode & S_IWUSR) ? "w" : "-");
-        permissions += ((file_data.st_mode & S_IXUSR) ? "x" : "-");
-        permissions += ((file_data.st_mode & S_IRGRP) ? "r" : "-");
-        permissions += ((file_data.st_mode & S_IWGRP) ? "w" : "-");
-        permissions += ((file_data.st_mode & S_IXGRP) ? "x" : "-");
-        permissions += ((file_data.st_mode & S_IROTH) ? "r" : "-");
-        permissions += ((file_data.st_mode & S_IWOTH) ? "w" : "-");
-        permissions += ((file_data.st_mode & S_IXOTH) ? "x" : "-");
-
-        /*** User and group name ***/
-        uid_t user_id = file_data.st_uid;
-        uid_t group_id = file_data.st_gid;
-        string username = (getpwuid(user_id)->pw_name);
-        string groupname = (getgrgid(group_id)->gr_name);
-
-        cout << cursor << permissions << "\t\t" << username << "\t\t" << groupname << "\t\t" << modified_time << "\t\t" << size_of_file << "\t\t" << arr[i] << endl;
+        else {
+            if( i==E.number_of_rows_terminal-1) cout << "----------NORMAL MODE---------- : " + E.current_path << endl;
+            else if(i>E.end_row)cout << " " << endl;
+        }
     }
 }
 
 
 int main() {
     enable_non_canonical_mode();
-    initialise_terminal();
     render_blank_screen();
+    initialise_terminal();
     reposition_cursor_to_start();
     const char * the_path = E.current_path.c_str();
     get_files(the_path);
@@ -216,20 +232,19 @@ int main() {
         if( c==10 /*enter key*/ ){
             string sub_path = record_keeper[E.row_no];
             E.prev_stack.push(E.current_path);
-            // if(is_directory(E.current_path)){
-                E.current_path = E.current_path + "/" + sub_path;
+            string to_check_status_dir = E.current_path + "/" + sub_path;
+            if(E.current_path=="/") to_check_status_dir=E.current_path+sub_path;
+            if(is_directory(to_check_status_dir)){
+                if(E.current_path=="/") E.current_path=E.current_path+sub_path;
+                else E.current_path = E.current_path + "/" + sub_path;
                 E.start_row=0;
                 E.end_row=E.window_size-1;
                 E.row_no=0;
                 the_path = E.current_path.c_str();
                 get_files(the_path);
-            // } else {
-            //     pid_t child=fork();
-            //     if(child==0){
-            //         string open_path_name= "xdg-open " + E.current_path + "/" + sub_path;
-            //         // cout << open_path_name << endl;
-            //         execl("/bin/sh", "sh", "-c", open_path_name.c_str() , (char *) NULL);
-            //     }
+            } else {
+                open_file(sub_path);
+            }
         } else if( c=='h' ){
             if( E.current_path!="/home/yash"){
                 string home_path = "/home/yash";
