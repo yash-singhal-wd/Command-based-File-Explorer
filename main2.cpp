@@ -12,10 +12,16 @@
 
 using namespace std;
 
+bool is_directory(string path){
+    struct stat file_data;
+    const char* temp_path = path.c_str();
+    stat(temp_path, &file_data);
+    string is_dir="";
+    is_dir += ((S_ISDIR(file_data.st_mode))  ? "d" : "-");
+    if( is_dir=="-" ) return false;
+    return true;
+}
 
 int main(){
-    char c;
-    c = cin.get();
-    if( c==10 ) cout << "Enter" << endl;
-    else cout << "nothing" << endl;
+    cout << is_directory("/home/yash/Desktop/assignments/pdfs/AOS_Assignment_1.pdf") << endl;
 }

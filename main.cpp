@@ -3,6 +3,7 @@
 using namespace std;
 
 void display_arr_on_terminal( int current_cursor_pos, vector <string> &arr);
+string get_parent_directory(string path);
 vector<string> record_keeper;
 
 /**** Initial terminal attributes and related functions ****/
@@ -39,8 +40,26 @@ void initialise_terminal(){
   E.start_row=0;
   E.end_row=E.window_size-1;
   E.current_path="/home/yash";
-  E.prev_stack.push("/");
-  E.prev_stack.push("/home");
+}
+
+/** helper functions **/
+bool is_directory(string path){
+    struct stat file_data;
+    const char* temp_path = path.c_str();
+    stat(temp_path, &file_data);
+    string is_dir="";
+    is_dir += ((S_ISDIR(file_data.st_mode))  ? "d" : "-");
+    if( is_dir=="-" ) return false;
+    return true;
+}
+
+string get_parent_directory(string path){
+    int p2 = path.length();
+    int i;
+    for(i=p2-1; path[i]!='/'; --i);
+    string parent = path.substr(0, i);
+    if(i==0) parent = "/"; 
+    return parent; 
 }
 
 
@@ -64,8 +83,8 @@ void enable_non_canonical_mode() {
         die("tcsgetattr");
     atexit(enable_canonical_mode);
     struct termios raw = E.orig_termios;
-    raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-    raw.c_cflag |= (CS8);
+    //raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+    //raw.c_cflag |= (CS8);
     raw.c_lflag &= ~(ECHO | ICANON);
 
     if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw)==-1) die("tcssetattr");
@@ -82,6 +101,7 @@ void reposition_cursor_to_start(){
 void render_blank_screen() {
     write(STDOUT_FILENO, "\x1b[2J", 4);
 }
+
 
 int get_files(const char* pathname){
     record_keeper.clear();
@@ -193,10 +213,47 @@ int main() {
     char c;
     while(1){
         c = cin.get();
-        if( c==10 ){
-            render_blank_screen();
-            cout << "enter!!!!!" << endl;
-        } else if( c=='q' ){
+        if( c==10 /*enter key*/ ){
+            string sub_path = record_keeper[E.row_no];
+            E.prev_stack.push(E.current_path);
+            // if(is_directory(E.current_path)){
+                E.current_path = E.current_path + "/" + sub_path;
+                E.start_row=0;
+                E.end_row=E.window_size-1;
+                E.row_no=0;
+                the_path = E.current_path.c_str();
+                get_files(the_path);
+            // } else {
+            //     pid_t child=fork();
+            //     if(child==0){
+            //         string open_path_name= "xdg-open " + E.current_path + "/" + sub_path;
+            //         // cout << open_path_name << endl;
+            //         execl("/bin/sh", "sh", "-c", open_path_name.c_str() , (char *) NULL);
+            //     }
+        } else if( c=='h' ){
+            if( E.current_path!="/home/yash"){
+                string home_path = "/home/yash";
+                E.prev_stack.push(E.current_path);
+                E.current_path = home_path;
+                E.start_row=0;
+                E.end_row=E.window_size-1;
+                E.row_no=0;
+                the_path = E.current_path.c_str();
+                get_files(the_path);
+            }
+        } else if( c==127 /*backspace*/ ){
+            if(E.current_path!="/"){
+                string parent = get_parent_directory(E.current_path);
+                E.prev_stack.push(E.current_path);
+                E.current_path = parent;
+                E.start_row=0;
+                E.end_row=E.window_size-1;
+                E.row_no=0;
+                the_path = E.current_path.c_str();
+                get_files(the_path);
+            }
+        } 
+        else if( c=='q' ) {
             render_blank_screen();
             reposition_cursor_to_start();
             break;
@@ -207,7 +264,7 @@ int main() {
             reposition_cursor_to_start();
         } else if(c == 'B' /*down*/){
             if( E.row_no < record_keeper.size()-1 ) E.row_no++;
-            the_path = E.current_path.c_str();
+            // the_path = E.current_path.c_str();
             display_arr_on_terminal(E.row_no, record_keeper);
             reposition_cursor_to_start();
         } else if(c == 'C' /*right*/){
