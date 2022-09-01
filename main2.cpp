@@ -12,16 +12,30 @@
 
 using namespace std;
 
-bool is_directory(string path){
-    struct stat file_data;
-    const char* temp_path = path.c_str();
-    stat(temp_path, &file_data);
-    string is_dir="";
-    is_dir += ((S_ISDIR(file_data.st_mode))  ? "d" : "-");
-    if( is_dir=="-" ) return false;
-    return true;
-}
 
+int window_size = 10;
+int start_ind = 0;
+int end_ind=window_size;
 int main(){
-    cout << is_directory("/home/yash/Desktop/assignments/pdfs/AOS_Assignment_1.pdf") << endl;
+    vector <int> vec;
+    for (int i=0; i<100; ++i)
+        vec.push_back(i+1);
+
+    char c;
+    while(1){
+        cout << "hello" << endl;
+        c = cin.get();
+        if( c=='q' ){
+            break;
+        }
+        else if( c=='w'){
+            if(start_ind>0) start_ind--;
+        } else if( c=='s'){
+            if(end_ind<window_size) end_ind++;
+        }
+
+        for( int i=start_ind; i<end_ind; ++i){
+            cout << vec[i] << endl;
+        }
+    }
 }

@@ -39,7 +39,7 @@ void initialise_terminal(){
   E.row_no = 0;
   E.window_size = E.number_of_rows_terminal-5;
   E.start_row=0;
-  E.end_row=E.window_size-1;
+  E.end_row=0;
   E.current_path="/home/yash";
 }
 
@@ -115,6 +115,7 @@ void render_blank_screen() {
 
 int get_files(const char* pathname){
     record_keeper.clear();
+    E.end_row=0;
     DIR* dir = opendir(pathname);
     if( dir==NULL ){
         render_blank_screen();
@@ -139,82 +140,75 @@ int get_files(const char* pathname){
 void display_arr_on_terminal(int current_cursor_pos, vector<string> &arr){
     render_blank_screen();
     string cursor = "       ";
-    if(arr.size()>E.window_size) E.end_row = E.window_size;
-    else E.end_row = arr.size();
-    if(E.row_no>E.end_row-1){
+    
+    if(E.row_no>(E.end_row-1)){
         E.start_row = E.end_row;
         E.end_row = arr.size()>(E.end_row+E.window_size) ? (E.end_row+E.window_size) : arr.size();
+    } else {
+        if(E.row_no<E.start_row && E.row_no!=0 && E.start_row!=0){
+            E.end_row = E.start_row;
+            E.start_row = (E.start_row-E.window_size)>0 ? (E.start_row-E.window_size) : 0;
+        }
     }
-    if(E.row_no<E.start_row && E.row_no!=0 && E.start_row!=0){
-        E.end_row = E.start_row;
-        E.start_row = (E.start_row-E.window_size)>0 ? (E.start_row-E.window_size) : 0;
-    }
-    for( int i=E.start_row; i<E.number_of_rows_terminal; ++i ){
-        if( i<E.end_row ){
-            if( i==current_cursor_pos ) cursor=">>>  "; 
-            else cursor = "     ";
+    for( int i=E.start_row; i<E.end_row; ++i ){
+        if( i==current_cursor_pos ) cursor=">>>  "; 
+        else cursor = "     ";
+        struct stat file_data;
+        string temp = E.current_path;
+        if(i==0) temp=E.current_path;
+        else if(i==1){
+            if( !E.prev_stack.empty()) temp=E.prev_stack.top();
+            else temp=E.current_path;
+        } 
+        else temp = temp + "/" + record_keeper[i];
+        
+        const char* temp_path = temp.c_str();
+        stat(temp_path, &file_data);  
 
-            struct stat file_data;
-            string temp = E.current_path;
-            if(i==0) temp=E.current_path;
-            else if(i==1){
-                if( !E.prev_stack.empty()) temp=E.prev_stack.top();
-                else temp=E.current_path;
-            } 
-            else temp = temp + "/" + record_keeper[i];
-            
-            const char* temp_path = temp.c_str();
-            stat(temp_path, &file_data);  
-
-            /*** modified time ***/
-            string modified_time = ctime(&file_data.st_mtime);
-            modified_time = modified_time.substr(4, 20);
-            /*** filesize ***/
-            string size_of_file="";
-            int file_size = file_data.st_size;
+        /*** modified time ***/
+        string modified_time = ctime(&file_data.st_mtime);
+        modified_time = modified_time.substr(4, 20);
+        /*** filesize ***/
+        string size_of_file="";
+        int file_size = file_data.st_size;
+        if( file_size>=1024 ){
+            file_size = file_size/1024;
             if( file_size>=1024 ){
                 file_size = file_size/1024;
-                if( file_size>=1024 ){
-                    file_size = file_size/1024;
-                    size_of_file = to_string(file_size);
-                    size_of_file = size_of_file + "GB";
-                } else {
-                    size_of_file = to_string(file_size);
-                    size_of_file = size_of_file + "KB";
-                }
-            } else if(file_size>0) {
                 size_of_file = to_string(file_size);
-                size_of_file = size_of_file + "B";
+                size_of_file = size_of_file + "GB";
             } else {
-                size_of_file = to_string(0);
-                size_of_file = size_of_file + "B";
+                size_of_file = to_string(file_size);
+                size_of_file = size_of_file + "KB";
             }
-
-            /*** permissions ***/
-            string permissions="";
-            permissions += ((S_ISDIR(file_data.st_mode))  ? "d" : "-");
-            permissions += ((file_data.st_mode & S_IRUSR) ? "r" : "-");
-            permissions += ((file_data.st_mode & S_IWUSR) ? "w" : "-");
-            permissions += ((file_data.st_mode & S_IXUSR) ? "x" : "-");
-            permissions += ((file_data.st_mode & S_IRGRP) ? "r" : "-");
-            permissions += ((file_data.st_mode & S_IWGRP) ? "w" : "-");
-            permissions += ((file_data.st_mode & S_IXGRP) ? "x" : "-");
-            permissions += ((file_data.st_mode & S_IROTH) ? "r" : "-");
-            permissions += ((file_data.st_mode & S_IWOTH) ? "w" : "-");
-            permissions += ((file_data.st_mode & S_IXOTH) ? "x" : "-");
-
-            /*** User and group name ***/
-            uid_t user_id = file_data.st_uid;
-            uid_t group_id = file_data.st_gid;
-            string username = (getpwuid(user_id)->pw_name);
-            string groupname = (getgrgid(group_id)->gr_name);
-
-            cout << cursor << permissions << "\t\t" << username << "\t\t" << groupname << "\t\t" << modified_time << "\t\t" << size_of_file << "\t\t" << arr[i] << endl;
+        } else if(file_size>0) {
+            size_of_file = to_string(file_size);
+            size_of_file = size_of_file + "B";
+        } else {
+            size_of_file = to_string(0);
+            size_of_file = size_of_file + "B";
         }
-        else {
-            if( i==E.number_of_rows_terminal-1) cout << "----------NORMAL MODE---------- : " + E.current_path << endl;
-            else if(i>E.end_row)cout << " " << endl;
-        }
+
+        /*** permissions ***/
+        string permissions="";
+        permissions += ((S_ISDIR(file_data.st_mode))  ? "d" : "-");
+        permissions += ((file_data.st_mode & S_IRUSR) ? "r" : "-");
+        permissions += ((file_data.st_mode & S_IWUSR) ? "w" : "-");
+        permissions += ((file_data.st_mode & S_IXUSR) ? "x" : "-");
+        permissions += ((file_data.st_mode & S_IRGRP) ? "r" : "-");
+        permissions += ((file_data.st_mode & S_IWGRP) ? "w" : "-");
+        permissions += ((file_data.st_mode & S_IXGRP) ? "x" : "-");
+        permissions += ((file_data.st_mode & S_IROTH) ? "r" : "-");
+        permissions += ((file_data.st_mode & S_IWOTH) ? "w" : "-");
+        permissions += ((file_data.st_mode & S_IXOTH) ? "x" : "-");
+
+        /*** User and group name ***/
+        uid_t user_id = file_data.st_uid;
+        uid_t group_id = file_data.st_gid;
+        string username = (getpwuid(user_id)->pw_name);
+        string groupname = (getgrgid(group_id)->gr_name);
+
+        cout << cursor << permissions << "\t\t" << username << "\t\t" << groupname << "\t\t" << modified_time << "\t\t" << size_of_file << "\t\t" << arr[i] << endl;        
     }
 }
 
@@ -274,13 +268,15 @@ int main() {
             break;
         } else if (c == 'A' /*up*/ ) {
             if(E.row_no>0) E.row_no--;
-            the_path = E.current_path.c_str();
+            // the_path = E.current_path.c_str();
             display_arr_on_terminal(E.row_no, record_keeper);
+            // get_files(the_path);
             reposition_cursor_to_start();
         } else if(c == 'B' /*down*/){
             if( E.row_no < record_keeper.size()-1 ) E.row_no++;
             // the_path = E.current_path.c_str();
             display_arr_on_terminal(E.row_no, record_keeper);
+            // get_files(the_path);
             reposition_cursor_to_start();
         } else if(c == 'C' /*right*/){
             if( !E.next_stack.empty() ){
