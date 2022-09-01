@@ -37,7 +37,7 @@ void initialise_terminal(){
   if( get_terminal_rows_and_cols(&E.number_of_rows_terminal, &E.number_of_cols_terminal) == -1)
     die("get_terminal_rows_and_cols");
   E.row_no = 0;
-  E.window_size = E.number_of_rows_terminal-5;
+  E.window_size = 10;
   E.start_row=0;
   E.end_row=0;
   E.current_path="/home/yash";
@@ -74,10 +74,18 @@ void open_file(string path){
 }
 
 void print_normal_mode_at_end(){
-    gotoxy(0, E.number_of_rows_terminal-1);
+    gotoxy(0, E.number_of_rows_terminal-3);
     cout << "---------------NORMAL MODE--------------- : " << E.current_path << endl;
-    gotoxy  (0,0); 
+    gotoxy(0,0); 
 }
+
+void print_command_mode_at_end(){
+    gotoxy(0, E.number_of_rows_terminal-3);
+    cout << "---------------COMMAND MODE---------------                                                                      " << endl;
+    gotoxy(0,E.number_of_rows_terminal-2);
+}
+
+
 /**** Error handling funtion ****/
 void die(const char *s) {
     // render_blank_screen();
@@ -85,6 +93,43 @@ void die(const char *s) {
     perror(s);
     exit(1);
 }
+
+
+/**** Functionalities ****/
+void home_and_backspace_common(){
+        E.start_row=0;
+        E.end_row=E.window_size-1;
+        E.row_no=0;
+        const char* the_path = E.current_path.c_str();
+        get_files(the_path);
+        print_normal_mode_at_end();
+}
+
+void on_press_home(){
+    if( E.current_path!="/home/yash"){
+        string home_path = "/home/yash";
+        E.prev_stack.push(E.current_path);
+        E.current_path = home_path;
+        home_and_backspace_common();
+    }
+}
+
+void on_press_backspace(){
+    if(E.current_path!="/"){
+        string parent = get_parent_directory(E.current_path);
+        E.prev_stack.push(E.current_path);
+        E.current_path = parent;
+        home_and_backspace_common();
+    }
+}
+
+void up_and_down_common(){
+    display_arr_on_terminal(E.row_no, record_keeper);
+    reposition_cursor_to_start();
+    print_normal_mode_at_end();
+}
+
+
 
 
 /**** Modes ****/
@@ -250,29 +295,9 @@ int main() {
                 print_normal_mode_at_end();
             }
         } else if( c=='h' ){
-            if( E.current_path!="/home/yash"){
-                string home_path = "/home/yash";
-                E.prev_stack.push(E.current_path);
-                E.current_path = home_path;
-                E.start_row=0;
-                E.end_row=E.window_size-1;
-                E.row_no=0;
-                the_path = E.current_path.c_str();
-                get_files(the_path);
-                print_normal_mode_at_end();
-            }
+            on_press_home();
         } else if( c==127 /*backspace*/ ){
-            if(E.current_path!="/"){
-                string parent = get_parent_directory(E.current_path);
-                E.prev_stack.push(E.current_path);
-                E.current_path = parent;
-                E.start_row=0;
-                E.end_row=E.window_size-1;
-                E.row_no=0;
-                the_path = E.current_path.c_str();
-                get_files(the_path);
-                print_normal_mode_at_end();
-            }
+            on_press_backspace();
         } 
         else if( c=='q' ) {
             render_blank_screen();
@@ -280,14 +305,10 @@ int main() {
             break;
         } else if (c == 'A' /*up*/ ) {
             if(E.row_no>0) E.row_no--;
-            display_arr_on_terminal(E.row_no, record_keeper);
-            reposition_cursor_to_start();
-            print_normal_mode_at_end();
+            up_and_down_common();
         } else if(c == 'B' /*down*/){
             if( E.row_no < record_keeper.size()-1 ) E.row_no++;
-            display_arr_on_terminal(E.row_no, record_keeper);
-            reposition_cursor_to_start();
-            print_normal_mode_at_end();
+            up_and_down_common();
         } else if(c == 'C' /*right*/){
             if( !E.next_stack.empty() ){
                 E.prev_stack.push(E.current_path);
@@ -313,8 +334,8 @@ int main() {
                 print_normal_mode_at_end();
 
             }
-        } else if( c == 'p' ){
-            print_normal_mode_at_end();
+        } else if( c == ':' ){
+            print_command_mode_at_end();
         }
     }
   return 0;
