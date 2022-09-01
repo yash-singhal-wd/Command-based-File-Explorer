@@ -85,6 +85,37 @@ void print_command_mode_at_end(){
     gotoxy(0,0); 
 }
 
+int dirExists(const char *path)
+{
+    struct stat info;
+
+    if(stat( path, &info ) != 0)
+        return 0;
+    else if(info.st_mode & S_IFDIR)
+        return 1;
+    else
+        return 0;
+}
+
+void get_real_path(){
+    
+}
+
+vector<string> tokenise_string(string str, char delim){
+    vector<string> tokens;
+    string temp = "";
+    for(int i = 0; i < str.length(); i++){
+        if(str[i] == delim){
+            tokens.push_back(temp);
+            temp = "";
+        }
+        else
+            temp += str[i];           
+    }
+    tokens.push_back(temp);
+    return tokens;
+}
+
 void handle_command_mode(){
     gotoxy(0,E.number_of_rows_terminal-2);
     char c2;
@@ -100,11 +131,52 @@ void handle_command_mode(){
             break;
         } else {
             if(c2!=10){
-                to_echo += c2;
+                if( c2!=127) to_echo += c2;
+                else{
+                    if(to_echo != "") 
+                        if(to_echo.length()>1){
+                            to_echo=to_echo.substr(0, to_echo.length()-1);
+                            render_blank_screen();
+                            gotoxy(0,0);
+                            const char * the_path = E.current_path.c_str();
+                            get_files(the_path);
+                            print_command_mode_at_end();
+                        } else{
+                            to_echo="";
+                            render_blank_screen();
+                            gotoxy(0,0);
+                            const char * the_path = E.current_path.c_str();
+                            get_files(the_path);
+                            print_command_mode_at_end();
+                        }  
+                }
                 gotoxy(0,E.number_of_rows_terminal-2);
                 cout << to_echo;
             } else {
                 //exec details here
+                vector<string> tokens = tokenise_string(to_echo, ' ');
+                string command = tokens[0];
+                if(command == "goto"){
+                    char * absolute_path;
+                    char buffer[2000];
+                    realpath(tokens[1].c_str(), buffer);
+                    cout << "  abs: " << buffer;
+                   
+                } else if(command == "copy") {
+
+                } else if(command == "move") {
+
+                } else if(command == "rename") {
+
+                } else if(command == "move") {
+
+                } else if(command == "create_file") {
+
+                } else if(command == "create_dir"){
+
+                } else if(command == "search") {
+
+                }
             }
         }
     }
@@ -205,6 +277,7 @@ void render_blank_screen() {
 
 int get_files(const char* pathname){
     record_keeper.clear();
+    E.start_row=0;
     E.end_row=0;
     DIR* dir = opendir(pathname);
     if( dir==NULL ){

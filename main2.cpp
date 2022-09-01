@@ -5,37 +5,30 @@
 #include <vector>
 #include <string.h>
 #include <iostream>
-// #include <algorithm>
 #include <sys/stat.h>
 #include <pwd.h>
 #include <grp.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 using namespace std;
+int dirExists(const char *path)
+{
+    struct stat info;
 
+    if(stat( path, &info ) != 0)
+        return 0;
+    else if(info.st_mode & S_IFDIR)
+        return 1;
+    else
+        return 0;
+}
 
-int window_size = 10;
-int start_ind = 0;
-int end_ind=window_size;
-int main(){
-    vector <int> vec;
-    for (int i=0; i<100; ++i)
-        vec.push_back(i+1);
-
-    char c;
-    while(1){
-        cout << "hello" << endl;
-        c = cin.get();
-        if( c=='q' ){
-            break;
-        }
-        else if( c=='w'){
-            if(start_ind>0) start_ind--;
-        } else if( c=='s'){
-            if(end_ind<window_size) end_ind++;
-        }
-
-        for( int i=start_ind; i<end_ind; ++i){
-            cout << vec[i] << endl;
-        }
-    }
+int main(int argc, char **argv)
+{
+    const char *path = "/home/yash/Desktop/assignments";
+    printf("%d\n", dirExists(path));
+    return 0;
 }
