@@ -73,6 +73,11 @@ void open_file(string path){
         }
 }
 
+void print_normal_mode_at_end(){
+    gotoxy(0, E.number_of_rows_terminal-1);
+    cout << "---------------NORMAL MODE--------------- : " << E.current_path << endl;
+    gotoxy  (0,0); 
+}
 /**** Error handling funtion ****/
 void die(const char *s) {
     // render_blank_screen();
@@ -93,8 +98,6 @@ void enable_non_canonical_mode() {
         die("tcsgetattr");
     atexit(enable_canonical_mode);
     struct termios raw = E.orig_termios;
-    //raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-    //raw.c_cflag |= (CS8);
     raw.c_lflag &= ~(ECHO | ICANON);
 
     if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw)==-1) die("tcssetattr");
@@ -104,6 +107,10 @@ void enable_non_canonical_mode() {
 /**** cursor related ****/
 void reposition_cursor_to_start(){
     write(STDOUT_FILENO, "\x1b[H", 3);
+}
+
+void gotoxy(int x, int y){
+    printf("%c[%d;%df",0x1B,y,x);
 }
 
 
@@ -220,6 +227,7 @@ int main() {
     reposition_cursor_to_start();
     const char * the_path = E.current_path.c_str();
     get_files(the_path);
+    print_normal_mode_at_end();
     char c;
     while(1){
         c = cin.get();
@@ -236,8 +244,10 @@ int main() {
                 E.row_no=0;
                 the_path = E.current_path.c_str();
                 get_files(the_path);
+                print_normal_mode_at_end();
             } else {
                 open_file(sub_path);
+                print_normal_mode_at_end();
             }
         } else if( c=='h' ){
             if( E.current_path!="/home/yash"){
@@ -249,6 +259,7 @@ int main() {
                 E.row_no=0;
                 the_path = E.current_path.c_str();
                 get_files(the_path);
+                print_normal_mode_at_end();
             }
         } else if( c==127 /*backspace*/ ){
             if(E.current_path!="/"){
@@ -260,6 +271,7 @@ int main() {
                 E.row_no=0;
                 the_path = E.current_path.c_str();
                 get_files(the_path);
+                print_normal_mode_at_end();
             }
         } 
         else if( c=='q' ) {
@@ -268,16 +280,14 @@ int main() {
             break;
         } else if (c == 'A' /*up*/ ) {
             if(E.row_no>0) E.row_no--;
-            // the_path = E.current_path.c_str();
             display_arr_on_terminal(E.row_no, record_keeper);
-            // get_files(the_path);
             reposition_cursor_to_start();
+            print_normal_mode_at_end();
         } else if(c == 'B' /*down*/){
             if( E.row_no < record_keeper.size()-1 ) E.row_no++;
-            // the_path = E.current_path.c_str();
             display_arr_on_terminal(E.row_no, record_keeper);
-            // get_files(the_path);
             reposition_cursor_to_start();
+            print_normal_mode_at_end();
         } else if(c == 'C' /*right*/){
             if( !E.next_stack.empty() ){
                 E.prev_stack.push(E.current_path);
@@ -288,6 +298,7 @@ int main() {
                 E.row_no=0;
                 the_path = E.current_path.c_str();
                 get_files(the_path);
+                print_normal_mode_at_end();
             }
         } else if(c == 'D' /*left*/){
             if( !E.prev_stack.empty() ){
@@ -299,7 +310,11 @@ int main() {
                 E.end_row=E.window_size-1;
                 E.row_no=0;
                 get_files(the_path);
+                print_normal_mode_at_end();
+
             }
+        } else if( c == 'p' ){
+            print_normal_mode_at_end();
         }
     }
   return 0;
