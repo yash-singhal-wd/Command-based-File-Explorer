@@ -81,10 +81,34 @@ void print_normal_mode_at_end(){
 
 void print_command_mode_at_end(){
     gotoxy(0, E.number_of_rows_terminal-3);
-    cout << "---------------COMMAND MODE---------------                                                                      " << endl;
-    gotoxy(0,E.number_of_rows_terminal-2);
+    cout << "---------------COMMAND MODE-------------- : " << E.current_path << endl;
+    gotoxy(0,0); 
 }
 
+void handle_command_mode(){
+    gotoxy(0,E.number_of_rows_terminal-2);
+    char c2;
+    string to_echo="";
+    while(1){
+        c2 = cin.get();
+        if(c2==27){
+            render_blank_screen();
+            reposition_cursor_to_start();
+            const char * the_path = E.current_path.c_str();
+            get_files(the_path);
+            print_normal_mode_at_end();
+            break;
+        } else {
+            if(c2!=10){
+                to_echo += c2;
+                gotoxy(0,E.number_of_rows_terminal-2);
+                cout << to_echo;
+            } else {
+                //exec details here
+            }
+        }
+    }
+}
 
 /**** Error handling funtion ****/
 void die(const char *s) {
@@ -96,7 +120,7 @@ void die(const char *s) {
 
 
 /**** Functionalities ****/
-void home_and_backspace_common(){
+void home_backspace_left_right_common(){
         E.start_row=0;
         E.end_row=E.window_size-1;
         E.row_no=0;
@@ -110,7 +134,7 @@ void on_press_home(){
         string home_path = "/home/yash";
         E.prev_stack.push(E.current_path);
         E.current_path = home_path;
-        home_and_backspace_common();
+        home_backspace_left_right_common();
     }
 }
 
@@ -119,7 +143,7 @@ void on_press_backspace(){
         string parent = get_parent_directory(E.current_path);
         E.prev_stack.push(E.current_path);
         E.current_path = parent;
-        home_and_backspace_common();
+        home_backspace_left_right_common();
     }
 }
 
@@ -129,8 +153,23 @@ void up_and_down_common(){
     print_normal_mode_at_end();
 }
 
+void on_press_right(){
+    if( !E.next_stack.empty() ){
+        E.prev_stack.push(E.current_path);
+        E.current_path = E.next_stack.top();
+        E.next_stack.pop();
+        home_backspace_left_right_common();
+    }
+}
 
-
+void on_press_left(){
+    if( !E.prev_stack.empty() ){
+        E.next_stack.push(E.current_path);
+        E.current_path = E.prev_stack.top();
+        E.prev_stack.pop();
+        home_backspace_left_right_common();
+    }
+}
 
 /**** Modes ****/
 void enable_canonical_mode() {
@@ -163,7 +202,6 @@ void gotoxy(int x, int y){
 void render_blank_screen() {
     write(STDOUT_FILENO, "\x1b[2J", 4);
 }
-
 
 int get_files(const char* pathname){
     record_keeper.clear();
@@ -310,32 +348,12 @@ int main() {
             if( E.row_no < record_keeper.size()-1 ) E.row_no++;
             up_and_down_common();
         } else if(c == 'C' /*right*/){
-            if( !E.next_stack.empty() ){
-                E.prev_stack.push(E.current_path);
-                E.current_path = E.next_stack.top();
-                E.next_stack.pop();
-                E.start_row=0;
-                E.end_row=E.window_size-1;
-                E.row_no=0;
-                the_path = E.current_path.c_str();
-                get_files(the_path);
-                print_normal_mode_at_end();
-            }
+            on_press_right();
         } else if(c == 'D' /*left*/){
-            if( !E.prev_stack.empty() ){
-                E.next_stack.push(E.current_path);
-                E.current_path = E.prev_stack.top();
-                E.prev_stack.pop();
-                the_path = E.current_path.c_str();
-                E.start_row=0;
-                E.end_row=E.window_size-1;
-                E.row_no=0;
-                get_files(the_path);
-                print_normal_mode_at_end();
-
-            }
+            on_press_left();
         } else if( c == ':' ){
             print_command_mode_at_end();
+            handle_command_mode();
         }
     }
   return 0;
