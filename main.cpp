@@ -6,6 +6,7 @@ void display_arr_on_terminal( int current_cursor_pos, vector <string> &arr);
 string get_parent_directory(string path);
 void open_file(string path);
 void change_dir(string path);
+bool search_command(string path, string filename);
 
 vector<string> record_keeper;
 
@@ -46,6 +47,33 @@ void initialise_terminal(){
   change_dir(".");
 }
 
+/** command functionalities **/
+bool search_command(string path, string filename)
+{
+	DIR * dir;
+	struct dirent * cur_dir;
+	struct stat file_info;
+	dir = opendir(path.c_str());
+	if (dir == NULL)
+		return false;
+	while ((cur_dir = readdir(dir)))
+	{
+		stat(cur_dir->d_name, &file_info);
+		string extracted_name = string(cur_dir->d_name);
+		if (extracted_name == filename)
+			return true;
+		if (extracted_name == "." || extracted_name == "..")
+			continue;
+		else if (S_ISDIR(file_info.st_mode))
+		{
+		    string next = path + "/" + extracted_name;
+			bool op = search_command(next, filename);
+			if (op == true) return true;
+		}
+	}
+	closedir(dir);
+	return false;
+}
 
 /** helper functions **/
 void change_dir(string path){
@@ -209,7 +237,26 @@ void handle_command_mode(){
                 } else if(command == "create_dir"){
 
                 } else if(command == "search") {
+                    string file_name = tokens[1];
+                    bool is_found = search_command(E.current_path, file_name);
+                    if(is_found){
+                        render_blank_screen();
+                        reposition_cursor_to_start();
+                        get_files(E.current_path.c_str());
+                        print_command_mode_at_end();
+                        gotoxy(0,E.number_of_rows_terminal-1);
+                        cout << file_name << " is available!";
+                        gotoxy(0,E.number_of_rows_terminal-2);
+                    } else {
+                        render_blank_screen();
+                        reposition_cursor_to_start();
+                        get_files(E.current_path.c_str());
+                        print_command_mode_at_end();
+                        gotoxy(0,E.number_of_rows_terminal-1);
+                        cout << "Not Available!";
+                        gotoxy(0,E.number_of_rows_terminal-2);
 
+                    }
                 }
             }
         }
