@@ -14,7 +14,7 @@
 #include <sys/stat.h>
 #include <pwd.h>
 #include <grp.h>
-
+#include <fcntl.h>
 
 void render_blank_screen(); 
 void die(const char *s);
