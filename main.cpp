@@ -43,7 +43,17 @@ void initialise_terminal(){
   E.current_path="/home/yash";
 }
 
+
 /** helper functions **/
+void change_dir(string path){
+    char abs_path[2000];
+    realpath(path.c_str(), abs_path);
+    // cout << "  abs: " << abs_path;
+    chdir(abs_path);
+    string current_dir(abs_path);
+    E.current_path = current_dir;
+}
+
 bool is_directory(string path){
     struct stat file_data;
     const char* temp_path = path.c_str();
@@ -122,7 +132,7 @@ void handle_command_mode(){
     string to_echo="";
     while(1){
         c2 = cin.get();
-        if(c2==27){
+        if(c2==27 || to_echo=="quit"){
             render_blank_screen();
             reposition_cursor_to_start();
             const char * the_path = E.current_path.c_str();
@@ -134,21 +144,13 @@ void handle_command_mode(){
                 if( c2!=127) to_echo += c2;
                 else{
                     if(to_echo != "") 
-                        if(to_echo.length()>1){
-                            to_echo=to_echo.substr(0, to_echo.length()-1);
-                            render_blank_screen();
-                            gotoxy(0,0);
-                            const char * the_path = E.current_path.c_str();
-                            get_files(the_path);
-                            print_command_mode_at_end();
-                        } else{
-                            to_echo="";
-                            render_blank_screen();
-                            gotoxy(0,0);
-                            const char * the_path = E.current_path.c_str();
-                            get_files(the_path);
-                            print_command_mode_at_end();
-                        }  
+                        if(to_echo.length()>1) to_echo=to_echo.substr(0, to_echo.length()-1);
+                        else to_echo="";
+                        render_blank_screen();
+                        gotoxy(0,0);
+                        const char * the_path = E.current_path.c_str();
+                        get_files(the_path);
+                        print_command_mode_at_end();  
                 }
                 gotoxy(0,E.number_of_rows_terminal-2);
                 cout << to_echo;
@@ -157,11 +159,7 @@ void handle_command_mode(){
                 vector<string> tokens = tokenise_string(to_echo, ' ');
                 string command = tokens[0];
                 if(command == "goto"){
-                    char * absolute_path;
-                    char buffer[2000];
-                    realpath(tokens[1].c_str(), buffer);
-                    cout << "  abs: " << buffer;
-                   
+                    change_dir(tokens[1]);
                 } else if(command == "copy") {
 
                 } else if(command == "move") {
@@ -205,7 +203,7 @@ void on_press_home(){
     if( E.current_path!="/home/yash"){
         string home_path = "/home/yash";
         E.prev_stack.push(E.current_path);
-        E.current_path = home_path;
+        change_dir(home_path);
         home_backspace_left_right_common();
     }
 }
@@ -214,7 +212,7 @@ void on_press_backspace(){
     if(E.current_path!="/"){
         string parent = get_parent_directory(E.current_path);
         E.prev_stack.push(E.current_path);
-        E.current_path = parent;
+        change_dir(parent);
         home_backspace_left_right_common();
     }
 }
@@ -228,7 +226,7 @@ void up_and_down_common(){
 void on_press_right(){
     if( !E.next_stack.empty() ){
         E.prev_stack.push(E.current_path);
-        E.current_path = E.next_stack.top();
+        change_dir(E.next_stack.top());
         E.next_stack.pop();
         home_backspace_left_right_common();
     }
@@ -237,7 +235,7 @@ void on_press_right(){
 void on_press_left(){
     if( !E.prev_stack.empty() ){
         E.next_stack.push(E.current_path);
-        E.current_path = E.prev_stack.top();
+        change_dir(E.prev_stack.top());
         E.prev_stack.pop();
         home_backspace_left_right_common();
     }
@@ -390,11 +388,9 @@ int main() {
         if( c==10 /*enter key*/ ){
             string sub_path = record_keeper[E.row_no];
             E.prev_stack.push(E.current_path);
-            string to_check_status_dir = E.current_path + "/" + sub_path;
-            if(E.current_path=="/") to_check_status_dir=E.current_path+sub_path;
+            string to_check_status_dir = E.current_path=="/" ? (E.current_path+sub_path): (E.current_path + "/" + sub_path);
             if(is_directory(to_check_status_dir)){
-                if(E.current_path=="/") E.current_path=E.current_path+sub_path;
-                else E.current_path = E.current_path + "/" + sub_path;
+                change_dir(to_check_status_dir);
                 E.start_row=0;
                 E.end_row=E.window_size-1;
                 E.row_no=0;

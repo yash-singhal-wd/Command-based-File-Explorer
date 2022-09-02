@@ -14,21 +14,19 @@
 #include <stdlib.h>
 
 using namespace std;
-int dirExists(const char *path)
-{
-    struct stat info;
-
-    if(stat( path, &info ) != 0)
-        return 0;
-    else if(info.st_mode & S_IFDIR)
-        return 1;
-    else
-        return 0;
+void change_dir(string path){
+    char abs_path[2000];
+    realpath(path.c_str(), abs_path);
+    // string abs(abs_path);
+    if(abs_path){
+        chdir(abs_path);
+        cout << abs_path << endl;
+    } else cout << "wrong path" << endl;
 }
 
 int main(int argc, char **argv)
 {
-    const char *path = "/home/yash/Desktop/assignments";
-    printf("%d\n", dirExists(path));
+    string path = "./.././..";
+    change_dir(path);
     return 0;
 }
