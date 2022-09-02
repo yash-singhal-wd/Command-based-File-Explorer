@@ -5,6 +5,8 @@ using namespace std;
 void display_arr_on_terminal( int current_cursor_pos, vector <string> &arr);
 string get_parent_directory(string path);
 void open_file(string path);
+void change_dir(string path);
+
 vector<string> record_keeper;
 
 /**** Initial terminal attributes and related functions ****/
@@ -40,7 +42,8 @@ void initialise_terminal(){
   E.window_size = 10;
   E.start_row=0;
   E.end_row=0;
-  E.current_path="/home/yash";
+//   E.current_path="/home/yash";
+  change_dir(".");
 }
 
 
@@ -107,9 +110,15 @@ int dirExists(const char *path)
         return 0;
 }
 
-void get_real_path(){
-    
+bool is_safe_to_list(string path){
+    if( dirExists(E.current_path.c_str()) && is_directory(E.current_path) )
+        return true;
+    else return false;
 }
+
+// void get_real_path(){
+    
+// }
 
 vector<string> tokenise_string(string str, char delim){
     vector<string> tokens;
@@ -132,13 +141,17 @@ void handle_command_mode(){
     string to_echo="";
     while(1){
         c2 = cin.get();
-        if(c2==27 || to_echo=="quit"){
+        if(c2==27){
             render_blank_screen();
             reposition_cursor_to_start();
             const char * the_path = E.current_path.c_str();
             get_files(the_path);
             print_normal_mode_at_end();
             break;
+        } else if(to_echo=="quit"){
+            render_blank_screen();
+            reposition_cursor_to_start();
+            exit(1);
         } else {
             if(c2!=10){
                 if( c2!=127) to_echo += c2;
@@ -157,11 +170,34 @@ void handle_command_mode(){
             } else {
                 //exec details here
                 vector<string> tokens = tokenise_string(to_echo, ' ');
+                to_echo="";
                 string command = tokens[0];
                 if(command == "goto"){
+                    E.prev_stack.push(E.current_path);
                     change_dir(tokens[1]);
+                    if(is_safe_to_list(E.current_path)){
+                        E.row_no=0;
+                        E.start_row=0;
+                        E.end_row=0;
+                        render_blank_screen();
+                        reposition_cursor_to_start();
+                        get_files(E.current_path.c_str());
+                        print_command_mode_at_end();
+                        gotoxy(0,E.number_of_rows_terminal-2);
+                    } else {
+                        string popped_path = E.prev_stack.top();
+                        E.prev_stack.pop();
+                        change_dir(popped_path);
+                        render_blank_screen();
+                        reposition_cursor_to_start();
+                        get_files(E.current_path.c_str());
+                        print_command_mode_at_end();
+                        gotoxy(0,E.number_of_rows_terminal-1);
+                        cout << "Invalid path or a file path!";
+                        gotoxy(0,E.number_of_rows_terminal-2);
+                    }
                 } else if(command == "copy") {
-
+                    cout << "copy command here";
                 } else if(command == "move") {
 
                 } else if(command == "rename") {
