@@ -7,6 +7,7 @@ string get_parent_directory(string path);
 void open_file(string path);
 void change_dir(string path);
 bool search_command(string path, string filename);
+bool is_safe_to_list(string path);
 
 vector<string> record_keeper;
 
@@ -67,13 +68,36 @@ bool search_command(string path, string filename)
 		else if (S_ISDIR(file_info.st_mode))
 		{
 		    string next = path + "/" + extracted_name;
-			bool op = search_command(next, filename);
-			if (op == true) return true;
+			bool res = search_command(next, filename);
+			if (res == true) return true;
 		}
 	}
 	closedir(dir);
 	return false;
 }
+
+
+bool create_directory_command(string path, string dirname){
+    if(path!="/"){
+        if(path[0]=='~'){
+            string to_append = E.current_path;
+            path = to_append + path.substr(1, path.length()-1);
+        }
+        char abs_path[2000];
+        realpath(path.c_str(), abs_path);
+        if(!is_safe_to_list(abs_path)) return false;
+        string temp(abs_path);
+        path = temp;
+        path = path + "/" + dirname;
+    } 
+    else path = path + dirname;
+    char abs_path[2000];
+    realpath(path.c_str(), abs_path);
+    const int new_dir_status = mkdir(abs_path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    if (new_dir_status==-1) return false;
+    else return true; 
+}
+
 
 /** helper functions **/
 void change_dir(string path){
@@ -233,9 +257,29 @@ void handle_command_mode(){
                 } else if(command == "move") {
 
                 } else if(command == "create_file") {
-
+                    string file_name = tokens[1];
+                    string dest_path = tokens[2];
                 } else if(command == "create_dir"){
-
+                    string dir_name = tokens[1];
+                    string dest_path = tokens[2];
+                    bool create_dir_status = create_directory_command(dest_path, dir_name);
+                    if(create_dir_status){
+                        render_blank_screen();
+                        reposition_cursor_to_start();
+                        get_files(E.current_path.c_str());
+                        print_command_mode_at_end();
+                        gotoxy(0,E.number_of_rows_terminal-1);
+                        cout << "Created " << dir_name << " successfully! Use goto " << dest_path <<" to see the directory.";
+                        gotoxy(0,E.number_of_rows_terminal-2);
+                    } else {
+                        render_blank_screen();
+                        reposition_cursor_to_start();
+                        get_files(E.current_path.c_str());
+                        print_command_mode_at_end();
+                        gotoxy(0,E.number_of_rows_terminal-1);
+                        cout << "Directory not created! Enter correct destination path.";
+                        gotoxy(0,E.number_of_rows_terminal-2);
+                    }
                 } else if(command == "search") {
                     string file_name = tokens[1];
                     bool is_found = search_command(E.current_path, file_name);

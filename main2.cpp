@@ -53,9 +53,34 @@ bool search(string path, string filename)
 	return false;
 }
 
+void rename_command(){
+    // take first arg
+    // take 2nd arg
+    // find their realpaths 
+    //rename(old,new)
+}
+
+bool create_directory(string path, string dirname){
+    if(path=="/") path = path + dirname;
+    else{
+        // if(path[0]=='~') path = 
+        // else path = 
+        path = path + "/" + dirname;
+
+    }
+    char abs_path[2000];
+    realpath(path.c_str(), abs_path);
+    const int new_dir_status = mkdir(abs_path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    if (new_dir_status==-1) return false;
+    else return true; 
+}
+
 int main(int argc, char **argv)
 {
-    string path = "/home/yash";
-    cout << search(path, "aos") << endl;
+    string path = "/home/yash/Desktop";
+    string dirname = "newdir3";
+    // cout << search(path, "aos") << endl;
+    cout << create_directory(path, dirname) << endl;
+
     return 0;
 }
