@@ -25,3 +25,4 @@ int get_terminal_rows_and_cols(int *rows, int *cols);
 void reposition_cursor_to_start();
 int get_files(const char* pathname);
 void gotoxy(int x, int y);
+int fileExists(const char *path);

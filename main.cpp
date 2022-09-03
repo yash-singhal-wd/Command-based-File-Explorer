@@ -53,6 +53,56 @@ void initialise_terminal(){
 }
 
 /** command functionalities **/
+bool copyfile_command(string source_file_path, string dest_dir_path){
+    if(source_file_path!="/"){
+        if(source_file_path[0]=='~'){
+            string to_append = get_tilda_dir();
+            source_file_path = to_append + source_file_path.substr(1, source_file_path.length()-1);
+        }
+        char abs_path[2000];
+        realpath(source_file_path.c_str(), abs_path);
+        string temp(abs_path);
+        source_file_path = temp;
+        if(!fileExists) return false;
+    }
+    cout << source_file_path << endl;
+
+    if(dest_dir_path!="/"){
+        if(dest_dir_path[0]=='~'){
+            string to_append = get_tilda_dir();
+            dest_dir_path = to_append + dest_dir_path.substr(1, dest_dir_path.length()-1);
+        }
+        char abs_path[2000];
+        realpath(dest_dir_path.c_str(), abs_path);
+        string temp(abs_path);
+        dest_dir_path = temp;
+        if(!is_safe_to_list(dest_dir_path)) return false;
+    }
+    cout << dest_dir_path << endl;
+    dest_dir_path = dest_dir_path + "/" + get_last_child(source_file_path);
+	FILE *copy_from, *write_to;
+	copy_from = fopen(source_file_path.c_str(), "r");
+	write_to = fopen(dest_dir_path.c_str(), "w");
+	if (copy_from == NULL) {
+        cout << "Here" << endl;
+		return false;
+    }
+    if( write_to == NULL){
+         cout << "Here i am" << endl;
+		return false;
+    }
+	char input;
+	while ((input = getc(copy_from)) != EOF)
+		putc(input, write_to);
+	struct stat source_temp;
+	stat(source_file_path.c_str(), &source_temp);
+	chown(dest_dir_path.c_str(), source_temp.st_uid, source_temp.st_gid);
+	chmod(dest_dir_path.c_str(), source_temp.st_mode);
+	fclose(write_to);
+	fclose(copy_from);
+	return true;
+}
+
 bool search_command(string path, string filename)
 {
 	DIR * dir;
@@ -259,6 +309,18 @@ int dirExists(const char *path)
         return 0;
 }
 
+int fileExists(const char *path)
+{
+    struct stat info;
+
+    if(stat( path, &info ) != 0)
+        return 0;
+    else if(info.st_mode & S_IFDIR)
+        return 0;
+    else
+        return 1;
+}
+
 bool is_safe_to_list(string path){
     if( dirExists(path.c_str()) && is_directory(path) )
         return true;
@@ -346,7 +408,33 @@ void handle_command_mode(){
                         gotoxy(0,E.number_of_rows_terminal-2);
                     }
                 } else if(command == "copy") {
-                    cout << "copy command here";
+                    int files_count = tokens.size()-2;
+                    int flag=0;
+                    string dest_path = tokens.at(tokens.size()-1);
+                    for( int i=1; i<=files_count; ++i){
+                        string file_name = tokens[i];
+                        if(!copyfile_command(file_name, dest_path)){
+                            flag=1;
+                            break;
+                        }
+                    }
+                    if(flag==0){
+                        render_blank_screen();
+                        reposition_cursor_to_start();
+                        get_files(E.current_path.c_str());
+                        print_command_mode_at_end();
+                        gotoxy(0,E.number_of_rows_terminal-1);
+                        cout << "All files/directories copied successfully!";
+                        gotoxy(0,E.number_of_rows_terminal-2);
+                    } else {
+                        render_blank_screen();
+                        reposition_cursor_to_start();
+                        get_files(E.current_path.c_str());
+                        print_command_mode_at_end();
+                        gotoxy(0,E.number_of_rows_terminal-1);
+                        cout << "Copy unsuccessful! Invalid file name or destination path.";
+                        gotoxy(0,E.number_of_rows_terminal-2);
+                    }
                 } else if(command == "move") {
                     int files_count = tokens.size()-2;
                     int flag=0;
@@ -565,9 +653,8 @@ void gotoxy(int x, int y){
 
 
 /**** output screen related ****/
-void render_blank_screen() {
+void render_blank_screen() {    
     cout << "\033[H\033[2J\033[3J";
-
 }
 
 int get_files(const char* pathname){
