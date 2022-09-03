@@ -10,6 +10,8 @@ bool search_command(string path, string filename);
 bool is_safe_to_list(string path);
 bool create_file_command(string path, string filename);
 string get_tilda_dir();
+bool move_command(string old_path, string new_path);
+string get_last_child(string path);
 
 vector<string> record_keeper;
 
@@ -77,6 +79,40 @@ bool search_command(string path, string filename)
 	closedir(dir);
 	return false;
 }
+
+bool move_command(string old_path, string new_path){
+    if(old_path!="/"){
+        if(old_path[0]=='~'){
+            string to_append = get_tilda_dir();
+            old_path = to_append + old_path.substr(1, old_path.length()-1);
+        }
+        char abs_path[2000];
+        realpath(old_path.c_str(), abs_path);
+        string temp(abs_path);
+        old_path = temp;
+    }
+
+    if(new_path!="/"){
+        if(new_path[0]=='~'){
+            string to_append = get_tilda_dir();
+            new_path = to_append + new_path.substr(1, new_path.length()-1);
+        }
+        char abs_path[2000];
+        realpath(new_path.c_str(), abs_path);
+        string temp(abs_path);
+        new_path = temp;
+        if(!is_safe_to_list(new_path)) return false;
+    }
+
+    // cout << old_path << " " << new_path << endl;
+    string child = get_last_child(old_path);
+    if(child=="") return false;
+    new_path = new_path + "/" + child;
+    int status = rename(old_path.c_str(), new_path.c_str());
+    if( status==-1 ) return false;
+    else return true; 
+}
+
 
 bool create_file_command(string path, string filename){
     if(path!="/"){
@@ -159,6 +195,15 @@ string get_tilda_dir(){
     string dir(pw->pw_name);
     dir = "/home/" + dir;
     return dir; 
+}
+
+string get_last_child(string path){
+    int p2 = path.length();
+    int i;
+    for(i=p2-1; path[i]!='/'; --i);
+    string child = path.substr(i+1, path.length()-i);
+    if(i==0) child="";
+    return child;
 }
 
 bool is_directory(string path){
@@ -303,7 +348,34 @@ void handle_command_mode(){
                 } else if(command == "copy") {
                     cout << "copy command here";
                 } else if(command == "move") {
-
+                    int files_count = tokens.size()-2;
+                    int flag=0;
+                    string dest_path = tokens.at(tokens.size()-1);
+                    for( int i=1; i<=files_count; ++i){
+                        string file_name = tokens[i];
+                        if(!move_command(file_name, dest_path)){
+                            flag=1;
+                            break;
+                        }
+                    }
+                    if(flag==0){
+                        render_blank_screen();
+                        reposition_cursor_to_start();
+                        get_files(E.current_path.c_str());
+                        print_command_mode_at_end();
+                        gotoxy(0,E.number_of_rows_terminal-1);
+                        cout << "All files/directories moved successfully!";
+                        gotoxy(0,E.number_of_rows_terminal-2);
+                    }
+                    else{
+                        render_blank_screen();
+                        reposition_cursor_to_start();
+                        get_files(E.current_path.c_str());
+                        print_command_mode_at_end();
+                        gotoxy(0,E.number_of_rows_terminal-1);
+                        cout << "Move unsuccessful! Invalid or root path.";
+                        gotoxy(0,E.number_of_rows_terminal-2);
+                    }
                 } else if(command == "rename") {
                     string path = tokens[1];
                     string  new_name = tokens[2];
@@ -405,7 +477,7 @@ void die(const char *s) {
 }
 
 
-/**** Functionalities ****/
+/**** Normal Functionalities ****/
 void home_backspace_left_right_common(){
         E.start_row=0;
         E.end_row=E.window_size-1;

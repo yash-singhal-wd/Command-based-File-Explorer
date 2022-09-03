@@ -36,8 +36,16 @@ string get_parent_directory(string path){
     return parent; 
 }
 
+string get_last_child(string path){
+    int p2 = path.length();
+    int i;
+    for(i=p2-1; path[i]!='/'; --i);
+    string child = path.substr(i+1, path.length()-i);
+    if(i==0) child="";
+    return child;
+}
+
 bool rename_command(string old_path, string filename){
-    // take first arg realpath
     if(old_path!="/"){
         if(old_path[0]=='~'){
             string to_append = get_tilda_dir();
@@ -45,15 +53,48 @@ bool rename_command(string old_path, string filename){
         }
         char abs_path[2000];
         realpath(old_path.c_str(), abs_path);
-        // if(!is_safe_to_list(abs_path)) return false;
         string temp(abs_path);
         old_path = temp;
     }
 
-    //get parent and append 2nd arg 
     string parent = get_parent_directory(old_path);
     string new_path = parent + "/" + filename;
-    //rename(old,new)
+
+    int status = rename(old_path.c_str(), new_path.c_str());
+    if( status==-1 ) return false;
+    else return true; 
+}
+
+bool move_command(string old_path, string new_path){
+    if(old_path!="/"){
+        if(old_path[0]=='~'){
+            string to_append = get_tilda_dir();
+            old_path = to_append + old_path.substr(1, old_path.length()-1);
+        }
+        char abs_path[2000];
+        realpath(old_path.c_str(), abs_path);
+        string temp(abs_path);
+        old_path = temp;
+    }
+
+    if(new_path!="/"){
+        if(new_path[0]=='~'){
+            string to_append = get_tilda_dir();
+            new_path = to_append + new_path.substr(1, new_path.length()-1);
+        }
+        char abs_path[2000];
+        realpath(new_path.c_str(), abs_path);
+        string temp(abs_path);
+        new_path = temp;
+    }
+
+
+    // string parent = get_parent_directory(old_path);
+    // string new_path = parent + "/" + filename;
+    cout << old_path << " " << new_path << endl;
+    string child = get_last_child(old_path);
+    if(child=="") return false;
+    new_path = new_path + "/" + child;
     int status = rename(old_path.c_str(), new_path.c_str());
     if( status==-1 ) return false;
     else return true; 
@@ -61,5 +102,5 @@ bool rename_command(string old_path, string filename){
 
 int main(int argc, char **argv)
 {
-    cout<<"Directory "<< rename_command("./../../hello_2", "hello_3")<< endl;
+    cout<<"Directory "<< move_command("../../new_dir", "../../to_paste/helo")<< endl;
 }
