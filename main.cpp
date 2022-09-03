@@ -9,6 +9,7 @@ void change_dir(string path);
 bool search_command(string path, string filename);
 bool is_safe_to_list(string path);
 bool create_file_command(string path, string filename);
+string get_tilda_dir();
 
 vector<string> record_keeper;
 
@@ -80,7 +81,7 @@ bool search_command(string path, string filename)
 bool create_file_command(string path, string filename){
     if(path!="/"){
         if(path[0]=='~'){
-            string to_append = E.current_path;
+            string to_append = get_tilda_dir();
             path = to_append + path.substr(1, path.length()-1);
         }
         char abs_path[2000];
@@ -101,7 +102,7 @@ bool create_file_command(string path, string filename){
 bool create_directory_command(string path, string dirname){
     if(path!="/"){
         if(path[0]=='~'){
-            string to_append = E.current_path;
+            string to_append = get_tilda_dir();
             path = to_append + path.substr(1, path.length()-1);
         }
         char abs_path[2000];
@@ -120,6 +121,26 @@ bool create_directory_command(string path, string dirname){
 }
 
 
+bool rename_command(string old_path, string filename){
+    if(old_path!="/"){
+        if(old_path[0]=='~'){
+            string to_append = get_tilda_dir();
+            old_path = to_append + old_path.substr(1, old_path.length()-1);
+        }
+        char abs_path[2000];
+        realpath(old_path.c_str(), abs_path);
+        string temp(abs_path);
+        old_path = temp;
+    }
+    string parent = get_parent_directory(old_path);
+    if(!is_safe_to_list(parent)) return false;
+    string new_path = parent + "/" + filename;
+
+    int status = rename(old_path.c_str(), new_path.c_str());
+    if( status==-1 ) return false;
+    else return true; 
+}
+
 /** helper functions **/
 void change_dir(string path){
     char abs_path[2000];
@@ -128,6 +149,16 @@ void change_dir(string path){
     chdir(abs_path);
     string current_dir(abs_path);
     E.current_path = current_dir;
+}
+
+string get_tilda_dir(){
+    uid_t uid;
+    passwd* pw;
+    uid = geteuid();
+    pw = getpwuid(uid);
+    string dir(pw->pw_name);
+    dir = "/home/" + dir;
+    return dir; 
 }
 
 bool is_directory(string path){
@@ -184,7 +215,7 @@ int dirExists(const char *path)
 }
 
 bool is_safe_to_list(string path){
-    if( dirExists(E.current_path.c_str()) && is_directory(E.current_path) )
+    if( dirExists(path.c_str()) && is_directory(path) )
         return true;
     else return false;
 }
@@ -274,7 +305,26 @@ void handle_command_mode(){
                 } else if(command == "move") {
 
                 } else if(command == "rename") {
-
+                    string path = tokens[1];
+                    string  new_name = tokens[2];
+                    bool rename_status = rename_command(path, new_name);
+                    if(rename_status){
+                        render_blank_screen();
+                        reposition_cursor_to_start();
+                        get_files(E.current_path.c_str());
+                        print_command_mode_at_end();
+                        gotoxy(0,E.number_of_rows_terminal-1);
+                        cout << "Renamed successfully!";
+                        gotoxy(0,E.number_of_rows_terminal-2);
+                    } else {
+                        render_blank_screen();
+                        reposition_cursor_to_start();
+                        get_files(E.current_path.c_str());
+                        print_command_mode_at_end();
+                        gotoxy(0,E.number_of_rows_terminal-1);
+                        cout << "Rename not successful! Path is invalid or name already exists.";
+                        gotoxy(0,E.number_of_rows_terminal-2);
+                    }
                 } else if(command == "delete") {
 
                 } else if(command == "create_file") {

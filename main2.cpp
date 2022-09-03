@@ -16,71 +16,50 @@
 using namespace std;
 
 vector<string> global_all;
-bool is_directory(string path){
-    struct stat file_data;
-    const char* temp_path = path.c_str();
-    stat(temp_path, &file_data);
-    string is_dir="";
-    is_dir += ((S_ISDIR(file_data.st_mode))  ? "d" : "-");
-    if( is_dir=="-" ) return false;
-    return true;
+
+string get_tilda_dir(){
+    uid_t uid;
+    passwd* pw;
+    uid = geteuid();
+    pw = getpwuid(uid);
+    string dir(pw->pw_name);
+    dir = "/home/" + dir;
+    return dir; 
 }
 
-bool search(string path, string filename)
-{
-	DIR * dir;
-	struct dirent * cur_dir;
-	struct stat file_info;
-	dir = opendir(path.c_str());
-	if (dir == NULL)
-		return false;
-	while ((cur_dir = readdir(dir)))
-	{
-		stat(cur_dir->d_name, &file_info);
-		string extracted_name = string(cur_dir->d_name);
-		if (extracted_name == filename)
-			return true;
-		if (extracted_name == "." || extracted_name == "..")
-			continue;
-		else if (S_ISDIR(file_info.st_mode))
-		{
-		    string next = path + "/" + extracted_name;
-			bool op = search(next, filename);
-			if (op == true) return true;
-		}
-	}
-	closedir(dir);
-	return false;
+string get_parent_directory(string path){
+    int p2 = path.length();
+    int i;
+    for(i=p2-1; path[i]!='/'; --i);
+    string parent = path.substr(0, i);
+    if(i==0) parent = "/"; 
+    return parent; 
 }
 
-void rename_command(){
-    // take first arg
-    // take 2nd arg
-    // find their realpaths 
-    //rename(old,new)
-}
-
-bool create_directory(string path, string dirname){
-    if(path=="/") path = path + dirname;
-    else{
-        // if(path[0]=='~') path = 
-        // else path = 
-        path = path + "/" + dirname;
-
+bool rename_command(string old_path, string filename){
+    // take first arg realpath
+    if(old_path!="/"){
+        if(old_path[0]=='~'){
+            string to_append = get_tilda_dir();
+            old_path = to_append + old_path.substr(1, old_path.length()-1);
+        }
+        char abs_path[2000];
+        realpath(old_path.c_str(), abs_path);
+        // if(!is_safe_to_list(abs_path)) return false;
+        string temp(abs_path);
+        old_path = temp;
     }
-    char abs_path[2000];
-    realpath(path.c_str(), abs_path);
-    const int new_dir_status = mkdir(abs_path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-    if (new_dir_status==-1) return false;
+
+    //get parent and append 2nd arg 
+    string parent = get_parent_directory(old_path);
+    string new_path = parent + "/" + filename;
+    //rename(old,new)
+    int status = rename(old_path.c_str(), new_path.c_str());
+    if( status==-1 ) return false;
     else return true; 
 }
 
 int main(int argc, char **argv)
 {
-    string path = "/home/yash/Desktop";
-    string dirname = "newdir3";
-    // cout << search(path, "aos") << endl;
-    cout << create_directory(path, dirname) << endl;
-
-    return 0;
+    cout<<"Directory "<< rename_command("./../../hello_2", "hello_3")<< endl;
 }
