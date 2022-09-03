@@ -17,6 +17,15 @@ using namespace std;
 
 vector<string> global_all;
 
+string get_parent_directory(string path){
+    int p2 = path.length();
+    int i;
+    for(i=p2-1; path[i]!='/'; --i);
+    string parent = path.substr(0, i);
+    if(i==0) parent = "/"; 
+    return parent; 
+}
+
 int fileExists(const char *path)
 {
     struct stat info;
@@ -71,7 +80,6 @@ bool copyfile_command(string source_file_path, string dest_dir_path){
         realpath(dest_dir_path.c_str(), abs_path);
         string temp(abs_path);
         dest_dir_path = temp;
-        // if(!is_safe_to_list(source_file_path)) return false;
     }
     cout << dest_dir_path << endl;
     dest_dir_path = dest_dir_path + "/" + get_last_child(source_file_path);
@@ -79,11 +87,9 @@ bool copyfile_command(string source_file_path, string dest_dir_path){
 	copy_from = fopen(source_file_path.c_str(), "r");
 	write_to = fopen(dest_dir_path.c_str(), "w");
 	if (copy_from == NULL) {
-        cout << "Here" << endl;
 		return false;
     }
     if( write_to == NULL){
-         cout << "Here i am" << endl;
 		return false;
     }
 	char input;
@@ -98,8 +104,38 @@ bool copyfile_command(string source_file_path, string dest_dir_path){
 	return true;
 }
 
+bool copydir(string src, string dest){
+
+	DIR * direct;
+	struct dirent * d;
+	struct stat info;
+	direct = opendir(src.c_str());
+	if (direct == NULL) return false;
+	while ((d = readdir(direct)))
+	{
+		string sname = src + "/" + string(d->d_name);
+		string dname = dest + "/" + string(d->d_name);
+		stat(sname.c_str(), &info);
+		string cname = string(d->d_name);
+		if (cname == "." || cname == "..")
+			continue;
+		else if (S_ISDIR(info.st_mode)){		
+		    mkdir(dname.c_str(),0777);
+			copydir(sname, dname);
+		}
+		else{
+            string temp_dname = get_parent_directory(dname);
+			copyfile_command(sname, temp_dname);
+        }
+			
+	}
+	closedir(direct);
+    return true;
+}
+
+
 
 int main(int argc, char **argv)
 {
-    cout << copyfile_command("../../a.txt", "../../labs") << endl;
+    copydir("/home/yash/Desktop/new_dir", "/home/yash/Desktop/latest_dir");
 }

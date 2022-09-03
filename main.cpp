@@ -12,6 +12,8 @@ bool create_file_command(string path, string filename);
 string get_tilda_dir();
 bool move_command(string old_path, string new_path);
 string get_last_child(string path);
+bool copydir(string source_dir, string dest_dir);
+bool copyfile_command(string source_file_path, string dest_dir_path);
 
 vector<string> record_keeper;
 
@@ -53,6 +55,59 @@ void initialise_terminal(){
 }
 
 /** command functionalities **/
+bool copydir(string source_dir, string dest_dir){
+
+    if(source_dir!="/"){
+        if(source_dir[0]=='~'){
+            string to_append = get_tilda_dir();
+            source_dir = to_append + source_dir.substr(1, source_dir.length()-1);
+        }
+        char abs_path[2000];
+        realpath(source_dir.c_str(), abs_path);
+        string temp(abs_path);
+        source_dir = temp;
+        if(!is_safe_to_list(source_dir)) return false;
+    }
+
+    if(dest_dir!="/"){
+        if(dest_dir[0]=='~'){
+            string to_append = get_tilda_dir();
+            dest_dir = to_append + dest_dir.substr(1, dest_dir.length()-1);
+        }
+        char abs_path[2000];
+        realpath(dest_dir.c_str(), abs_path);
+        string temp(abs_path);
+        dest_dir = temp;
+        if(!is_safe_to_list(dest_dir)) return false;
+    }
+
+	DIR * dir;
+	struct dirent * d;
+	struct stat info;
+	dir = opendir(source_dir.c_str());
+	if (dir == NULL) return false;
+	while ((d = readdir(dir)))
+	{
+		string sname = source_dir + "/" + string(d->d_name);
+		string dname = dest_dir + "/" + string(d->d_name);
+		stat(sname.c_str(), &info);
+		string cname = string(d->d_name);
+		if (cname == "." || cname == "..")
+			continue;
+		else if (S_ISDIR(info.st_mode)){		
+		    mkdir(dname.c_str(),0777);
+			copydir(sname, dname);
+		}
+		else{
+            string temp_dname = get_parent_directory(dname);
+			copyfile_command(sname, temp_dname);
+        }
+			
+	}
+	closedir(dir);
+    return true;
+}
+
 bool copyfile_command(string source_file_path, string dest_dir_path){
     if(source_file_path!="/"){
         if(source_file_path[0]=='~'){
@@ -84,11 +139,9 @@ bool copyfile_command(string source_file_path, string dest_dir_path){
 	copy_from = fopen(source_file_path.c_str(), "r");
 	write_to = fopen(dest_dir_path.c_str(), "w");
 	if (copy_from == NULL) {
-        cout << "Here" << endl;
 		return false;
     }
     if( write_to == NULL){
-         cout << "Here i am" << endl;
 		return false;
     }
 	char input;
@@ -327,10 +380,6 @@ bool is_safe_to_list(string path){
     else return false;
 }
 
-// void get_real_path(){
-    
-// }
-
 vector<string> tokenise_string(string str, char delim){
     vector<string> tokens;
     string temp = "";
@@ -413,9 +462,43 @@ void handle_command_mode(){
                     string dest_path = tokens.at(tokens.size()-1);
                     for( int i=1; i<=files_count; ++i){
                         string file_name = tokens[i];
-                        if(!copyfile_command(file_name, dest_path)){
-                            flag=1;
-                            break;
+                        //real path
+                        if(file_name!="/"){
+                            if(file_name[0]=='~'){
+                                string to_append = get_tilda_dir();
+                                file_name = to_append + file_name.substr(1, file_name.length()-1);
+                            }
+                            char abs_path[2000];
+                            realpath(file_name.c_str(), abs_path);
+                            string temp(abs_path);
+                            file_name = temp;
+                        }
+                        //realpath
+                        if(!dirExists(file_name.c_str())){
+                            if(!copyfile_command(file_name, dest_path)){
+                                flag=1;
+                                break;
+                            }
+                        } else {
+                            //realpath
+                            if(dest_path!="/"){
+                                if(dest_path[0]=='~'){
+                                    string to_append = get_tilda_dir();
+                                    dest_path = to_append + dest_path.substr(1, dest_path.length()-1);
+                                }
+                                char abs_path[2000];
+                                realpath(dest_path.c_str(), abs_path);
+                                string temp(abs_path);
+                                dest_path = temp;
+                            }
+                            //realpath
+                            string child = get_last_child(file_name);
+                            create_directory_command(dest_path, child);
+                            dest_path = dest_path + "/" + child;
+                            if(!copydir(file_name, dest_path)){
+                                flag=1;
+                                break;
+                            }
                         }
                     }
                     if(flag==0){
