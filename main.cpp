@@ -398,7 +398,7 @@ void handle_command_mode(){
                         gotoxy(0,E.number_of_rows_terminal-2);
                     }
                 } else if(command == "delete") {
-
+                    
                 } else if(command == "create_file") {
                     string file_name = tokens[1];
                     string dest_path = tokens[2];
@@ -462,6 +462,14 @@ void handle_command_mode(){
                         gotoxy(0,E.number_of_rows_terminal-2);
 
                     }
+                } else {
+                        render_blank_screen();
+                        reposition_cursor_to_start();
+                        get_files(E.current_path.c_str());
+                        print_command_mode_at_end();
+                        gotoxy(0,E.number_of_rows_terminal-1);
+                        cout << "Enter correct command!";
+                        gotoxy(0,E.number_of_rows_terminal-2);
                 }
             }
         }
@@ -558,7 +566,8 @@ void gotoxy(int x, int y){
 
 /**** output screen related ****/
 void render_blank_screen() {
-    write(STDOUT_FILENO, "\x1b[2J", 4);
+    cout << "\033[H\033[2J\033[3J";
+
 }
 
 int get_files(const char* pathname){
