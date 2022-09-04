@@ -1,4 +1,3 @@
-#include "myheader.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <errno.h>
@@ -16,11 +15,13 @@
 #include <pwd.h>
 #include <grp.h>
 #include <fcntl.h>
+#include <signal.h>
 
 using namespace std;
 
 void reposition_cursor_to_start();
 void print_command_mode_at_end();
+void print_normal_mode_at_end();
 int get_files(const char* pathname);
 void gotoxy(int x, int y);
 int fileExists(const char *path);
@@ -44,6 +45,7 @@ bool copydir(string source_dir, string dest_dir);
 bool copyfile_command(string source_file_path, string dest_dir_path);
 bool delete_file_command(string path);
 bool delete_dir_command(string source_dir_path);
+void resize_handler(int trigger);
 
 vector<string> record_keeper;
 
@@ -59,6 +61,7 @@ struct terminal_configs {
     struct termios orig_termios;
     stack<string> prev_stack;
     stack<string> next_stack;
+    int is_normal_mode;
 };
 struct terminal_configs E;
 
@@ -73,14 +76,24 @@ int get_terminal_rows_and_cols(int *rows, int *cols){
     }
 }
 
+void resize_handler(int trigger){
+    if( get_terminal_rows_and_cols(&E.number_of_rows_terminal, &E.number_of_cols_terminal) == -1)
+        die("get_terminal_rows_and_cols");
+    // render_blank_screen();
+    get_files(E.current_path.c_str());
+    if(E.is_normal_mode) print_normal_mode_at_end();
+    else print_command_mode_at_end();
+}
+
 void initialise_terminal(){
   if( get_terminal_rows_and_cols(&E.number_of_rows_terminal, &E.number_of_cols_terminal) == -1)
     die("get_terminal_rows_and_cols");
   E.row_no = 0;
-  E.window_size = E.number_of_rows_terminal-15;
+  E.window_size = E.number_of_rows_terminal-5;
   E.start_row=0;
   E.end_row=0;
   change_dir(".");
+  E.is_normal_mode=1;
 }
 
 /** command functionalities **/
@@ -210,6 +223,9 @@ bool search_command(string path, string filename)
 	}
 	closedir(dir);
 	return false;
+
+    // vector<string> file_names;
+
 }
 
 bool move_command(string old_path, string new_path){
@@ -432,13 +448,15 @@ void open_file(string path){
 
 void print_normal_mode_at_end(){
     gotoxy(0, E.number_of_rows_terminal-3);
-    cout << "---------------NORMAL MODE--------------- : " << E.current_path << endl;
+    string to_echo = "-------------NORMAL MODE------------ : " + E.current_path; 
+    cout << to_echo.substr(0, E.number_of_cols_terminal-1 ) << endl;
     gotoxy(0,0); 
 }
 
 void print_command_mode_at_end(){
     gotoxy(0, E.number_of_rows_terminal-3);
-    cout << "---------------COMMAND MODE-------------- : " << E.current_path << endl;
+    string to_echo = "-------------COMMAND MODE------------ :" + E.current_path; 
+    cout << to_echo.substr(0, E.number_of_cols_terminal-1) << endl;
     gotoxy(0,0); 
 }
 
@@ -494,6 +512,7 @@ void handle_command_mode(){
     while(1){
         c2 = cin.get();
         if(c2==27){
+            E.is_normal_mode = 1;
             render_blank_screen();
             reposition_cursor_to_start();
             const char * the_path = E.current_path.c_str();
@@ -908,8 +927,10 @@ void display_arr_on_terminal(int current_cursor_pos, vector<string> &arr){
         uid_t group_id = file_data.st_gid;
         string username = (getpwuid(user_id)->pw_name);
         string groupname = (getgrgid(group_id)->gr_name);
-
-        cout << cursor << permissions << "\t\t" << username << "\t\t" << groupname << "\t\t" << modified_time << "\t\t" << size_of_file << "\t\t" << arr[i] << endl;        
+        string blank = "    ";
+        string to_echo = cursor + permissions + blank + username + blank + groupname + blank + modified_time + blank + size_of_file + blank + arr[i]; 
+        to_echo = to_echo.substr(0, E.number_of_cols_terminal-2);
+        cout << to_echo << endl;        
     }
 }
 
@@ -924,6 +945,8 @@ int main() {
     print_normal_mode_at_end();
     char c;
     while(1){
+        E.is_normal_mode=1;
+        signal(SIGWINCH, resize_handler);
         c = cin.get();
         if( c==10 /*enter key*/ ){
             string sub_path = record_keeper[E.row_no];
@@ -961,6 +984,7 @@ int main() {
         } else if(c == 'D' /*left*/){
             on_press_left();
         } else if( c == ':' ){
+            E.is_normal_mode = 0;
             print_command_mode_at_end();
             handle_command_mode();
         }
