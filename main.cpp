@@ -49,10 +49,9 @@ void initialise_terminal(){
   if( get_terminal_rows_and_cols(&E.number_of_rows_terminal, &E.number_of_cols_terminal) == -1)
     die("get_terminal_rows_and_cols");
   E.row_no = 0;
-  E.window_size = 10;
+  E.window_size = E.number_of_rows_terminal-15;
   E.start_row=0;
   E.end_row=0;
-//   E.current_path="/home/yash";
   change_dir(".");
 }
 
@@ -499,242 +498,194 @@ void handle_command_mode(){
                 string command = tokens[0];
                 /******************** GOTO ****************************/
                 if(command == "goto"){
-                    E.prev_stack.push(E.current_path);
-                    change_dir(tokens[1]);
-                    if(is_safe_to_list(E.current_path)){
-                        E.row_no=0;
-                        E.start_row=0;
-                        E.end_row=0;
-                        render_blank_screen();
-                        reposition_cursor_to_start();
-                        get_files(E.current_path.c_str());
-                        print_command_mode_at_end();
-                        gotoxy(0,E.number_of_rows_terminal-2);
-                    } else {
-                        string popped_path = E.prev_stack.top();
-                        E.prev_stack.pop();
-                        change_dir(popped_path);
-                        render_blank_screen();
-                        reposition_cursor_to_start();
-                        get_files(E.current_path.c_str());
-                        print_command_mode_at_end();
-                        gotoxy(0,E.number_of_rows_terminal-1);
-                        cout << "Invalid path or a file path!";
-                        gotoxy(0,E.number_of_rows_terminal-2);
-                    }
-                /******************** COPY FILE/DIRECTORY ****************************/
-                } else if(command == "copy") {
-                    int files_count = tokens.size()-2;
-                    int flag=0;
-                    string dest_path = tokens.at(tokens.size()-1);
-                    for( int i=1; i<=files_count; ++i){
-                        string file_name = tokens[i];
-                        //real path
-                        if(file_name!="/"){
-                            if(file_name[0]=='~'){
+                    if(tokens.size()!=2)
+                        command_mode_print_status("Enter valid argument count!");
+                    else {
+                        string path = tokens[1];
+                        if(path!="/"){
+                            if(path[0]=='~'){
                                 string to_append = get_tilda_dir();
-                                file_name = to_append + file_name.substr(1, file_name.length()-1);
+                                path = to_append + path.substr(1, path.length()-1);
                             }
                             char abs_path[2000];
-                            realpath(file_name.c_str(), abs_path);
+                            realpath(path.c_str(), abs_path);
                             string temp(abs_path);
-                            file_name = temp;
+                            path = temp;
                         }
-                        //realpath
-                        if(!dirExists(file_name.c_str())){
-                            if(!copyfile_command(file_name, dest_path)){
-                                flag=1;
-                                break;
-                            }
+                        E.prev_stack.push(E.current_path);
+                        change_dir(path);
+                        if(is_safe_to_list(E.current_path)){
+                            E.row_no=0;
+                            E.start_row=0;
+                            E.end_row=0;
+                            command_mode_print_status("");
                         } else {
-                            //realpath
-                            if(dest_path!="/"){
-                                if(dest_path[0]=='~'){
+                            string popped_path = E.prev_stack.top();
+                            E.prev_stack.pop();
+                            change_dir(popped_path);
+                            command_mode_print_status("Invalid path or a file path!");
+                        }
+                    }
+                    
+                /******************** COPY FILE/DIRECTORY ****************************/
+                } else if(command == "copy") {
+                    if(tokens.size()<3)
+                        command_mode_print_status("Enter valid argument count!");
+                    else {
+                        int files_count = tokens.size()-2;
+                        int flag=0;
+                        string dest_path = tokens.at(tokens.size()-1);
+                        for( int i=1; i<=files_count; ++i){
+                            string file_name = tokens[i];
+                            //real path
+                            if(file_name!="/"){
+                                if(file_name[0]=='~'){
                                     string to_append = get_tilda_dir();
-                                    dest_path = to_append + dest_path.substr(1, dest_path.length()-1);
+                                    file_name = to_append + file_name.substr(1, file_name.length()-1);
                                 }
                                 char abs_path[2000];
-                                realpath(dest_path.c_str(), abs_path);
+                                realpath(file_name.c_str(), abs_path);
                                 string temp(abs_path);
-                                dest_path = temp;
+                                file_name = temp;
                             }
                             //realpath
-                            string child = get_last_child(file_name);
-                            create_directory_command(dest_path, child);
-                            dest_path = dest_path + "/" + child;
-                            if(!copydir(file_name, dest_path)){
+                            if(!dirExists(file_name.c_str())){
+                                if(!copyfile_command(file_name, dest_path)){
+                                    flag=1;
+                                    break;
+                                }
+                            } else {
+                                //realpath
+                                if(dest_path!="/"){
+                                    if(dest_path[0]=='~'){
+                                        string to_append = get_tilda_dir();
+                                        dest_path = to_append + dest_path.substr(1, dest_path.length()-1);
+                                    }
+                                    char abs_path[2000];
+                                    realpath(dest_path.c_str(), abs_path);
+                                    string temp(abs_path);
+                                    dest_path = temp;
+                                }
+                                //realpath
+                                string child = get_last_child(file_name);
+                                create_directory_command(dest_path, child);
+                                dest_path = dest_path + "/" + child;
+                                if(!copydir(file_name, dest_path)){
+                                    flag=1;
+                                    break;
+                                }
+                            }
+                        }
+                        if(flag==0)
+                            command_mode_print_status("All files/directories copied successfully!");
+                        else
+                            command_mode_print_status("Copy unsuccessful! Invalid file name or destination path.");
+                    }
+                }
+
+                /******************** MOVE FILE/DIRECTORY ****************************/
+                 else if(command == "move") {
+                    if(tokens.size()<3)
+                        command_mode_print_status("Enter valid argument count!");
+                    else {
+                        int files_count = tokens.size()-2;
+                        int flag=0;
+                        string dest_path = tokens.at(tokens.size()-1);
+                        for( int i=1; i<=files_count; ++i){
+                            string file_name = tokens[i];
+                            if(!move_command(file_name, dest_path)){
                                 flag=1;
                                 break;
                             }
                         }
+                        if(flag==0)
+                            command_mode_print_status("All files/directories moved successfully!");
+                        else
+                            command_mode_print_status("Move unsuccessful! Invalid or root path.");
                     }
-                    if(flag==0){
-                        render_blank_screen();
-                        reposition_cursor_to_start();
-                        get_files(E.current_path.c_str());
-                        print_command_mode_at_end();
-                        gotoxy(0,E.number_of_rows_terminal-1);
-                        cout << "All files/directories copied successfully!";
-                        gotoxy(0,E.number_of_rows_terminal-2);
-                    } else {
-                        render_blank_screen();
-                        reposition_cursor_to_start();
-                        get_files(E.current_path.c_str());
-                        print_command_mode_at_end();
-                        gotoxy(0,E.number_of_rows_terminal-1);
-                        cout << "Copy unsuccessful! Invalid file name or destination path.";
-                        gotoxy(0,E.number_of_rows_terminal-2);
-                    }
-                /******************** MOVE FILE/DIRECTORY ****************************/
-                } else if(command == "move") {
-                    int files_count = tokens.size()-2;
-                    int flag=0;
-                    string dest_path = tokens.at(tokens.size()-1);
-                    for( int i=1; i<=files_count; ++i){
-                        string file_name = tokens[i];
-                        if(!move_command(file_name, dest_path)){
-                            flag=1;
-                            break;
-                        }
-                    }
-                    if(flag==0){
-                        render_blank_screen();
-                        reposition_cursor_to_start();
-                        get_files(E.current_path.c_str());
-                        print_command_mode_at_end();
-                        gotoxy(0,E.number_of_rows_terminal-1);
-                        cout << "All files/directories moved successfully!";
-                        gotoxy(0,E.number_of_rows_terminal-2);
-                    }
-                    else{
-                        render_blank_screen();
-                        reposition_cursor_to_start();
-                        get_files(E.current_path.c_str());
-                        print_command_mode_at_end();
-                        gotoxy(0,E.number_of_rows_terminal-1);
-                        cout << "Move unsuccessful! Invalid or root path.";
-                        gotoxy(0,E.number_of_rows_terminal-2);
-                    }
+                }
+
                 /******************** RENAME ****************************/
-                } else if(command == "rename") {
-                    string path = tokens[1];
-                    string  new_name = tokens[2];
-                    bool rename_status = rename_command(path, new_name);
-                    if(rename_status){
-                        render_blank_screen();
-                        reposition_cursor_to_start();
-                        get_files(E.current_path.c_str());
-                        print_command_mode_at_end();
-                        gotoxy(0,E.number_of_rows_terminal-1);
-                        cout << "Renamed successfully!";
-                        gotoxy(0,E.number_of_rows_terminal-2);
-                    } else {
-                        render_blank_screen();
-                        reposition_cursor_to_start();
-                        get_files(E.current_path.c_str());
-                        print_command_mode_at_end();
-                        gotoxy(0,E.number_of_rows_terminal-1);
-                        cout << "Rename not successful! Path is invalid or name already exists.";
-                        gotoxy(0,E.number_of_rows_terminal-2);
+                else if(command == "rename") {
+                    if(tokens.size()!=3) command_mode_print_status("Enter valid argument count!");
+                    else {
+                        string path = tokens[1];
+                        string  new_name = tokens[2];
+                        bool rename_status = rename_command(path, new_name);
+                        if(rename_status)
+                            command_mode_print_status("Renamed successfully");
+                        else
+                            command_mode_print_status("Rename not successful! Path is invalid or name already exists.");
                     }
+                }
+                
                 /******************** DELETE FILE ****************************/
-                } else if(command == "delete_file") {
-                    string path = tokens[1];
-                    bool delete_file_status = delete_file_command(path);
-                    if(delete_file_status){
-                        render_blank_screen();
-                        reposition_cursor_to_start();
-                        get_files(E.current_path.c_str());
-                        print_command_mode_at_end();
-                        gotoxy(0,E.number_of_rows_terminal-1);
-                        cout << "Deleted file successfully!";
-                        gotoxy(0,E.number_of_rows_terminal-2);
-                    } else {
-                        render_blank_screen();
-                        reposition_cursor_to_start();
-                        get_files(E.current_path.c_str());
-                        print_command_mode_at_end();
-                        gotoxy(0,E.number_of_rows_terminal-1);
-                        cout << "Operation unsuccessful! Enter correct path.";
-                        gotoxy(0,E.number_of_rows_terminal-2);
+                else if(command == "delete_file") {
+                    if(tokens.size()!=2) command_mode_print_status("Enter valid argument count!");
+                    else {
+                        string path = tokens[1];
+                        bool delete_file_status = delete_file_command(path);
+                        if(delete_file_status)
+                            command_mode_print_status("Deleted file successfully!");
+                        else command_mode_print_status("Operation unsuccessful! Enter correct path.");
                     }
+                }
+                
                 /******************** DELETE DIRECTORY ****************************/
-                } else if(command=="delete_dir") {
-                    string path = tokens[1];
-                    bool delete_dir_status = delete_dir_command(path);
-                    if(delete_dir_status){
-                        render_blank_screen();
-                        reposition_cursor_to_start();
-                        get_files(E.current_path.c_str());
-                        print_command_mode_at_end();
-                        gotoxy(0,E.number_of_rows_terminal-1);
-                        cout << "Deleted directory successfully!";
-                        gotoxy(0,E.number_of_rows_terminal-2);
-                    } else {
-                        render_blank_screen();
-                        reposition_cursor_to_start();
-                        get_files(E.current_path.c_str());
-                        print_command_mode_at_end();
-                        gotoxy(0,E.number_of_rows_terminal-1);
-                        cout << "Operation unsuccessful! Enter correct path.";
-                        gotoxy(0,E.number_of_rows_terminal-2);
-                    }
+                else if(command=="delete_dir") {
+                    if(tokens.size()!=2) command_mode_print_status("Enter valid argument count!");
+                    else {
+                        string path = tokens[1];
+                        bool delete_dir_status = delete_dir_command(path);
+                        if(delete_dir_status)
+                            command_mode_print_status("Deleted directory successfully!");
+                        else command_mode_print_status("Operation unsuccessful! Enter correct path.");
+                    } 
                 } 
+
                 /******************** CREATE FILE ****************************/
                 else if(command == "create_file") {
-                    string file_name = tokens[1];
-                    string dest_path = tokens[2];
-                    bool create_file_status = create_file_command(dest_path, file_name);
-                    if(create_file_status){
-                        render_blank_screen();
-                        reposition_cursor_to_start();
-                        get_files(E.current_path.c_str());
-                        print_command_mode_at_end();
-                        gotoxy(0,E.number_of_rows_terminal-1);
-                        cout << "Created " << file_name << " successfully!";
-                        gotoxy(0,E.number_of_rows_terminal-2);
-                    } else {
-                        render_blank_screen();
-                        reposition_cursor_to_start();
-                        get_files(E.current_path.c_str());
-                        print_command_mode_at_end();
-                        gotoxy(0,E.number_of_rows_terminal-1);
-                        cout << "File not created! Enter correct destination path.";
-                        gotoxy(0,E.number_of_rows_terminal-2);
-                    } 
-                /******************** CREATE DIRECTORY ****************************/
-                } else if(command == "create_dir"){
-                    string dir_name = tokens[1];
-                    string dest_path = tokens[2];
-                    bool create_dir_status = create_directory_command(dest_path, dir_name);
-                    if(create_dir_status){
-                        render_blank_screen();
-                        reposition_cursor_to_start();
-                        get_files(E.current_path.c_str());
-                        print_command_mode_at_end();
-                        gotoxy(0,E.number_of_rows_terminal-1);
-                        cout << "Created " << dir_name << " successfully!";
-                        gotoxy(0,E.number_of_rows_terminal-2);
-                    } else {
-                        render_blank_screen();
-                        reposition_cursor_to_start();
-                        get_files(E.current_path.c_str());
-                        print_command_mode_at_end();
-                        gotoxy(0,E.number_of_rows_terminal-1);
-                        cout << "Directory not created! Enter correct destination path.";
-                        gotoxy(0,E.number_of_rows_terminal-2);
+                    if(tokens.size()!=3) command_mode_print_status("Enter valid argument count!");
+                    else {
+                        string file_name = tokens[1];
+                        string dest_path = tokens[2];
+                        bool create_file_status = create_file_command(dest_path, file_name);
+                        if(create_file_status){
+                            string status_message = "Created " + file_name + " successfully!";
+                            command_mode_print_status(status_message);
+                        } else
+                            command_mode_print_status("File not created! Enter correct destination path.");
                     }
+                }
+                /******************** CREATE DIRECTORY ****************************/
+                else if(command == "create_dir"){
+                    if(tokens.size()!=3) command_mode_print_status("Enter valid argument count!");
+                    else {
+                        string dir_name = tokens[1];
+                        string dest_path = tokens[2];
+                        bool create_dir_status = create_directory_command(dest_path, dir_name);
+                        if(create_dir_status){
+                            string status_message = "Created "+dir_name+" successfully!";
+                            command_mode_print_status(status_message);
+                        } else command_mode_print_status("Directory not created! Enter correct destination path.");
+                    }
+                }
+
                 /******************** SEARCH ****************************/
-                } else if(command == "search") {
-                    string file_name = tokens[1];
-                    bool is_found = search_command(E.current_path, file_name);
-                    if(is_found){
-                        string status_message = file_name + " is available";
-                        command_mode_print_status(status_message);
-                    } else command_mode_print_status("Search unsuccessful!");
+                else if(command == "search") {
+                    if(tokens.size()!=2) command_mode_print_status("Enter valid argument count!");
+                    else {
+                        string file_name = tokens[1];
+                        bool is_found = search_command(E.current_path, file_name);
+                        if(is_found){
+                            string status_message = file_name + " is available";
+                            command_mode_print_status(status_message);
+                        } else command_mode_print_status("Search unsuccessful!");
+                    }
+                }
 
                 /******************** WRONG COMMAND ****************************/
-                } else command_mode_print_status("Enter correct command!");
+                else command_mode_print_status("Enter correct command!");
             }
         }
     }
@@ -760,8 +711,9 @@ void home_backspace_left_right_common(){
 }
 
 void on_press_home(){
-    if( E.current_path!="/home/yash"){
-        string home_path = "/home/yash";
+    string home_p = get_tilda_dir();
+    if( E.current_path!=home_p){
+        string home_path = home_p;
         E.prev_stack.push(E.current_path);
         change_dir(home_path);
         home_backspace_left_right_common();
