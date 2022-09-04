@@ -1,7 +1,35 @@
 #include "myheader.h"
+#include <ctype.h>
+#include <stdio.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <termios.h>
+#include <unistd.h>
+#include <iostream>
+#include <sys/ioctl.h>
+#include <string.h>
+#include <dirent.h>
+#include <vector>
+#include <algorithm>
+#include <stack>
+#include <sys/stat.h>
+#include <pwd.h>
+#include <grp.h>
+#include <fcntl.h>
 
 using namespace std;
 
+void reposition_cursor_to_start();
+void print_command_mode_at_end();
+int get_files(const char* pathname);
+void gotoxy(int x, int y);
+int fileExists(const char *path);
+int get_terminal_rows_and_cols(int *rows, int *cols);
+void initialise_terminal();
+void die(const char *s);
+void enable_canonical_mode();
+void enable_non_canonical_mode();
+void render_blank_screen(); 
 void display_arr_on_terminal( int current_cursor_pos, vector <string> &arr);
 string get_parent_directory(string path);
 void open_file(string path);
