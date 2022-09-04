@@ -26,3 +26,4 @@ void reposition_cursor_to_start();
 int get_files(const char* pathname);
 void gotoxy(int x, int y);
 int fileExists(const char *path);
+void print_command_mode_at_end();

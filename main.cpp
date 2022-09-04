@@ -15,6 +15,7 @@ string get_last_child(string path);
 bool copydir(string source_dir, string dest_dir);
 bool copyfile_command(string source_file_path, string dest_dir_path);
 bool delete_file_command(string path);
+bool delete_dir_command(string source_dir_path);
 
 vector<string> record_keeper;
 
@@ -299,7 +300,52 @@ bool delete_file_command(string path){
     else return false;
 }
 
-/** helper functions **/
+bool delete_dir_command(string source_dir_path){
+    //getting real path
+    if(source_dir_path!="/"){
+        if(source_dir_path[0]=='~'){
+            string to_append = get_tilda_dir();
+            source_dir_path = to_append + source_dir_path.substr(1, source_dir_path.length()-1);
+        }
+        char abs_path[2000];
+        realpath(source_dir_path.c_str(), abs_path);
+        string temp(abs_path);
+        source_dir_path = temp;
+    }
+    //getting real path
+
+    if(fileExists(source_dir_path.c_str())) return false;
+
+	DIR * dir;
+	struct dirent * content;
+	dir = opendir(source_dir_path.c_str());
+	if (dir == NULL) return false;
+	struct stat info;
+	while ((content = readdir(dir))) {
+		string new_source = source_dir_path + "/" + string(content->d_name);
+		stat(new_source.c_str(), &info);
+		string cname = string(content->d_name);
+		if (cname == "." || cname == "..")
+			continue;
+		else if (S_ISDIR(info.st_mode)) delete_dir_command(new_source);
+		else delete_file_command(new_source);
+	}
+	closedir(dir);
+	remove(source_dir_path.c_str());
+    return true;
+}
+
+/************************************* helper functions *****************************************/
+void command_mode_print_status(string message){
+    render_blank_screen();
+    reposition_cursor_to_start();
+    get_files(E.current_path.c_str());
+    print_command_mode_at_end();
+    gotoxy(0,E.number_of_rows_terminal-1);
+    cout << message;
+    gotoxy(0,E.number_of_rows_terminal-2);
+}
+
 void change_dir(string path){
     char abs_path[2000];
     realpath(path.c_str(), abs_path);
@@ -601,7 +647,7 @@ void handle_command_mode(){
                         get_files(E.current_path.c_str());
                         print_command_mode_at_end();
                         gotoxy(0,E.number_of_rows_terminal-1);
-                        cout << "Deleted successfully!";
+                        cout << "Deleted file successfully!";
                         gotoxy(0,E.number_of_rows_terminal-2);
                     } else {
                         render_blank_screen();
@@ -614,7 +660,25 @@ void handle_command_mode(){
                     }
                 /******************** DELETE DIRECTORY ****************************/
                 } else if(command=="delete_dir") {
-                    cout << "delete dir";
+                    string path = tokens[1];
+                    bool delete_dir_status = delete_dir_command(path);
+                    if(delete_dir_status){
+                        render_blank_screen();
+                        reposition_cursor_to_start();
+                        get_files(E.current_path.c_str());
+                        print_command_mode_at_end();
+                        gotoxy(0,E.number_of_rows_terminal-1);
+                        cout << "Deleted directory successfully!";
+                        gotoxy(0,E.number_of_rows_terminal-2);
+                    } else {
+                        render_blank_screen();
+                        reposition_cursor_to_start();
+                        get_files(E.current_path.c_str());
+                        print_command_mode_at_end();
+                        gotoxy(0,E.number_of_rows_terminal-1);
+                        cout << "Operation unsuccessful! Enter correct path.";
+                        gotoxy(0,E.number_of_rows_terminal-2);
+                    }
                 } 
                 /******************** CREATE FILE ****************************/
                 else if(command == "create_file") {
@@ -665,33 +729,12 @@ void handle_command_mode(){
                     string file_name = tokens[1];
                     bool is_found = search_command(E.current_path, file_name);
                     if(is_found){
-                        render_blank_screen();
-                        reposition_cursor_to_start();
-                        get_files(E.current_path.c_str());
-                        print_command_mode_at_end();
-                        gotoxy(0,E.number_of_rows_terminal-1);
-                        cout << file_name << " is available!";
-                        gotoxy(0,E.number_of_rows_terminal-2);
-                    } else {
-                        render_blank_screen();
-                        reposition_cursor_to_start();
-                        get_files(E.current_path.c_str());
-                        print_command_mode_at_end();
-                        gotoxy(0,E.number_of_rows_terminal-1);
-                        cout << "Not Available!";
-                        gotoxy(0,E.number_of_rows_terminal-2);
+                        string status_message = file_name + " is available";
+                        command_mode_print_status(status_message);
+                    } else command_mode_print_status("Search unsuccessful!");
 
-                    }
                 /******************** WRONG COMMAND ****************************/
-                } else {
-                        render_blank_screen();
-                        reposition_cursor_to_start();
-                        get_files(E.current_path.c_str());
-                        print_command_mode_at_end();
-                        gotoxy(0,E.number_of_rows_terminal-1);
-                        cout << "Enter correct command!";
-                        gotoxy(0,E.number_of_rows_terminal-2);
-                }
+                } else command_mode_print_status("Enter correct command!");
             }
         }
     }
