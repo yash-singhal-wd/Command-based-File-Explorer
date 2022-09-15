@@ -454,6 +454,7 @@ void print_normal_mode_at_end(){
 }
 
 void print_command_mode_at_end(){
+    //
     gotoxy(0, E.number_of_rows_terminal-3);
     string to_echo = "-------------COMMAND MODE------------ :" + E.current_path; 
     cout << to_echo.substr(0, E.number_of_cols_terminal-1) << endl;
